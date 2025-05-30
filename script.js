@@ -52,6 +52,4 @@ app.use("/api/auth", authRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api", shutdownRoutes);
 
-server.listen(3000, () => {
-  console.log("Serveur backend démarré sur http://localhost:3000");
-});
+
