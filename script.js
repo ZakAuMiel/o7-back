@@ -52,4 +52,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api", shutdownRoutes);
 
+const PORT = process.env.PORT || 3000;
 
+server.listen(PORT, () => {
+  console.log(`✅ Serveur backend démarré sur http://localhost:${PORT}`);
+});
