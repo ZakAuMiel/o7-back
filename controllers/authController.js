@@ -17,7 +17,6 @@ exports.login = (req, res) => {
 
 exports.callback = async (req, res) => {
   const code = req.query.code;
-
   if (!code) return res.status(400).send('Code manquant');
 
   try {
@@ -41,15 +40,16 @@ exports.callback = async (req, res) => {
       headers: { Authorization: `Bearer ${tokenData.access_token}` }
     });
 
-    // 🔐 Sauvegarder dans la session
+    // 🔐 Sauvegarde de la session
     req.session.access_token = tokenData.access_token;
     req.session.refresh_token = tokenData.refresh_token;
     req.session.user = userData;
 
     console.log(`✅ ${userData.username} connecté (ID: ${userData.id})`);
 
-    // ⚠️ Ne vérifie plus la whitelist ici, ce sera fait après le choix du serveur
-    res.redirect('http://localhost:5173/select-server');
+    // 🔁 Redirige vers le front
+    const redirectFront = process.env.FRONTEND_REDIRECT_URL || 'http://localhost:5173/select-server';
+    res.redirect(redirectFront);
   } catch (error) {
     console.error('❌ Discord OAuth2 Error:', error);
     res.status(500).send('Authentication failed');
