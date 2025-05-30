@@ -1,3 +1,4 @@
+//authController.js
 const querystring = require('querystring');
 const axios = require('axios');
 const whitelist = require('../utils/whitelist');
@@ -13,10 +14,13 @@ exports.login = (req, res) => {
     redirect_uri: DISCORD_REDIRECT_URI,
     response_type: 'code',
     scope: 'identify guilds'
-  });
+  }
+);
 
   const discordUrl = `https://discord.com/api/oauth2/authorize?${params.toString()}`;
   res.redirect(discordUrl);
+
+  console.log("👉 Redirect URI utilisée :", DISCORD_REDIRECT_URI);
 };
 
 exports.callback = async (req, res) => {
