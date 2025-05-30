@@ -8,10 +8,14 @@ const {
 } = require('../config/DiscordAuth');
 
 exports.login = (req, res) => {
-  const redirect_uri = encodeURIComponent(DISCORD_REDIRECT_URI);
-  const scope = encodeURIComponent('identify guilds');
+  const params = new URLSearchParams({
+    client_id: DISCORD_CLIENT_ID,
+    redirect_uri: DISCORD_REDIRECT_URI,
+    response_type: 'code',
+    scope: 'identify guilds'
+  });
 
-  const discordUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${redirect_uri}&response_type=code&scope=${scope}`;
+  const discordUrl = `https://discord.com/api/oauth2/authorize?${params.toString()}`;
   res.redirect(discordUrl);
 };
 
