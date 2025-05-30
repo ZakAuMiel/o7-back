@@ -1,18 +1,17 @@
-// commands/setrole.js
 const { SlashCommandBuilder } = require('discord.js');
-const whitelist = require('../utils/whitelist');
+const { setRole } = require('../utils/whitelist');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('setrole')
-    .setDescription('Assign a role (ami or streamer) to a user')
+    .setDescription('Ajoute ou modifie un rôle pour un utilisateur')
     .addUserOption(option =>
       option.setName('user')
-        .setDescription('User to assign a role to')
+        .setDescription('Utilisateur cible')
         .setRequired(true))
     .addStringOption(option =>
       option.setName('role')
-        .setDescription('Role to assign (ami or streamer)')
+        .setDescription('Rôle à attribuer (ami ou streamer)')
         .setRequired(true)
         .addChoices(
           { name: 'ami', value: 'ami' },
@@ -23,10 +22,9 @@ module.exports = {
     const user = interaction.options.getUser('user');
     const role = interaction.options.getString('role');
 
-    whitelist.setRole(user.id, role);
-
+    setRole(user.id, role);
     await interaction.reply({
-      content: `✅ ${user.username} has been assigned the role **${role}**.`,
+      content: `✅ ${user.username} a été ajouté/modifié en tant que \`${role}\`.`,
       ephemeral: true
     });
   }

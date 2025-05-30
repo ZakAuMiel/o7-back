@@ -1,24 +1,25 @@
+const { SlashCommandBuilder } = require('discord.js');
 const { REST, Routes } = require('discord.js');
-require('dotenv').config();
+const dotenv = require('dotenv');
+dotenv.config();
 
-const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN);
-const CLIENT_ID = process.env.CLIENT_ID;
+module.exports = {
+  data: new SlashCommandBuilder()
+    .setName('clearglobalcommands')
+    .setDescription('Supprime toutes les commandes globales enregistrées'),
 
-(async () => {
-  try {
-    const commands = await rest.get(Routes.applicationCommands(process.env.CLIENT_ID));
+  async execute(interaction) {
+    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN);
 
-    console.log(`Found ${commands.length} global command(s). Deleting...`);
-
-    for (const command of commands) {
-      await rest.delete(
-        Routes.applicationCommand(process.env.CLIENT_ID, command.id)
+    try {
+      await rest.put(
+        Routes.applicationCommands(interaction.client.user.id),
+        { body: [] }
       );
-      console.log(`❌ Deleted global command: ${command.name}`);
+      await interaction.reply({ content: '🧼 Commandes globales supprimées.', ephemeral: true });
+    } catch (err) {
+      console.error('❌ Erreur clearGlobalCommands:', err);
+      await interaction.reply({ content: '❌ Une erreur est survenue.', ephemeral: true });
     }
-
-    console.log('✅ Global commands cleared!');
-  } catch (error) {
-    console.error(error);
   }
-})();
+};

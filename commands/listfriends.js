@@ -1,24 +1,22 @@
-// commands/listfriends.js
 const { SlashCommandBuilder } = require('discord.js');
-const whitelist = require('../utils/whitelist');
+const { listAll } = require('../utils/whitelist');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('listfriends')
-    .setDescription('List all users in the whitelist'),
+    .setDescription('Liste tous les utilisateurs autorisés'),
 
   async execute(interaction) {
-    const roles = require('../utils/friendRoles.json');
+    const roles = listAll();
 
     if (Object.keys(roles).length === 0) {
-      return interaction.reply({ content: '👥 The whitelist is empty.', ephemeral: true });
+      return interaction.reply({ content: '👥 La whitelist est vide.', ephemeral: true });
     }
 
-    let message = '📜 **Whitelisted users:**\n';
-    for (const [userId, role] of Object.entries(roles)) {
-      message += `- <@${userId}> → \`${role}\`\n`;
-    }
+    const message = Object.entries(roles)
+      .map(([id, role]) => `- <@${id}> → \`${role}\``)
+      .join('\n');
 
-    await interaction.reply({ content: message, ephemeral: true });
+    await interaction.reply({ content: `📜 **Whitelist actuelle :**\n${message}`, ephemeral: true });
   }
 };
