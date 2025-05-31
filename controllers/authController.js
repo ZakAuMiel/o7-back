@@ -57,6 +57,8 @@ exports.callback = async (req, res) => {
 
     // 🔁 Redirige vers le front
     const redirectFront = process.env.FRONTEND_REDIRECT_URL || 'http://localhost:5173/select-server';
+    console.log("✅ SESSION AVANT REDIRECT :", req.session);
+    console.log("👉 Redirection vers le front :", redirectFront);
     res.redirect(redirectFront);
   } catch (error) {
     console.error('❌ Discord OAuth2 Error:', error);

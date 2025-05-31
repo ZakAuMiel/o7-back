@@ -74,6 +74,16 @@ router.get("/me", requireLogin, (req, res) => {
 });
 
 
+// 🧪 Test de session
+router.get("/me", (req, res) => {
+  console.log("🧪 Session actuelle :", req.session);
+  if (req.session && req.session.user) {
+    res.json({ user: req.session.user });
+  } else {
+    res.status(401).json({ error: "Utilisateur non connecté" });
+  }
+});
+
 // ────────────────
 // 🛡️ Vérification du rôle du user dans un serveur
 // ────────────────
