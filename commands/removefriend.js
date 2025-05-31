@@ -8,17 +8,42 @@ module.exports = {
     .addUserOption(option =>
       option.setName('user')
         .setDescription('Utilisateur à retirer')
-        .setRequired(true)),
+        .setRequired(true)
+    ),
 
   async execute(interaction) {
-    const user = interaction.options.getUser('user');
-    const current = getRole(user.id);
+    try {
+      const user = interaction.options.getUser('user');
+      const current = getRole(user.id);
 
-    if (!current) {
-      return interaction.reply({ content: `❌ ${user.username} n’est pas dans la whitelist.`, ephemeral: true });
+      if (!current) {
+        return await interaction.reply({
+          content: `❌ **${user.tag}** n’est pas dans la whitelist.`,
+          ephemeral: true
+        });
+      }
+
+      const success = remove(user.id);
+
+      if (success) {
+        await interaction.reply({
+          content: `🗑️ **${user.tag}** a été retiré de la whitelist (${current}).`,
+          ephemeral: true
+        });
+      } else {
+        throw new Error("La suppression a échoué (non trouvé ?)");
+      }
+    } catch (err) {
+      console.error("❌ Erreur /removefriend :", err);
+
+      if (interaction.replied || interaction.deferred) {
+        await interaction.editReply('❌ Une erreur est survenue lors de la suppression.');
+      } else {
+        await interaction.reply({
+          content: '❌ Une erreur est survenue lors de la suppression.',
+          ephemeral: true
+        });
+      }
     }
-
-    remove(user.id);
-    await interaction.reply({ content: `🗑️ ${user.username} a été retiré de la whitelist.`, ephemeral: true });
   }
 };

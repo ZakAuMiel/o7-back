@@ -6,7 +6,19 @@ const axios = require("axios");
 const authController = require("../controllers/authController");
 const requireLogin = require("../middlewares/requireLogin");
 const { client } = require("../services/discordBot");
-const friendRoles = require("../utils/friendRoles.json");
+const friendRolesPath = path.join(__dirname, "../utils/friendRoles.json");
+
+
+// ────────────────
+// 📂 Chargement des rôles amis
+function getFriendRoles() {
+  try {
+    return JSON.parse(fs.readFileSync(friendRolesPath, "utf-8"));
+  } catch (err) {
+    console.error("❌ Impossible de lire friendRoles.json :", err);
+    return {};
+  }
+}
 
 // ────────────────
 // 🔐 Authentification Discord
@@ -35,7 +47,7 @@ router.get("/discord/guilds", requireLogin, async (req, res) => {
     const botGuilds = await client.guilds.fetch();
     const filtered = data.filter((guild) => botGuilds.has(guild.id));
 
-    res.json({ guilds: filtered });
+    res.json(filtered);
   } catch (err) {
     console.error("❌ Erreur récupération guilds:", err);
     res.status(500).json({ error: "Erreur Discord API" });
@@ -57,8 +69,9 @@ router.get("/verify-role", requireLogin, async (req, res) => {
   try {
     const guild = await client.guilds.fetch(guildId);
     const member = await guild.members.fetch(userId);
+    console.log(`👤 ${member.user.username} est membre du serveur "${guild.name}"`);
 
-    const role = friendRoles[userId];
+    const role = getFriendRoles()[userId];
 
     if (role === "ami" || role === "streamer") {
       return res.json({ role });

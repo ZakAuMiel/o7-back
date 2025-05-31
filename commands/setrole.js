@@ -19,13 +19,28 @@ module.exports = {
         )),
 
   async execute(interaction) {
-    const user = interaction.options.getUser('user');
-    const role = interaction.options.getString('role');
+    try {
+      const user = interaction.options.getUser('user');
+      const role = interaction.options.getString('role');
 
-    setRole(user.id, role);
-    await interaction.reply({
-      content: `✅ ${user.username} a été ajouté/modifié en tant que \`${role}\`.`,
-      ephemeral: true
-    });
+      // ⛑️ Logique principale
+      setRole(user.id, role);
+
+      await interaction.reply({
+        content: `✅ **${user.tag}** a été ajouté/modifié en tant que \`${role}\`.`,
+        ephemeral: true
+      });
+    } catch (error) {
+      console.error('❌ Erreur dans /setrole :', error);
+
+      if (interaction.replied || interaction.deferred) {
+        await interaction.editReply('❌ Une erreur est survenue lors de l’attribution du rôle.');
+      } else {
+        await interaction.reply({
+          content: '❌ Une erreur est survenue lors de l’attribution du rôle.',
+          ephemeral: true
+        });
+      }
+    }
   }
 };
