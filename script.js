@@ -27,7 +27,7 @@ app.set("io", io);
 // CORS config autorisant le front en local ET en prod
 const allowedOrigins = [
   'http://localhost:5173',
-  'https://o7-dashboard.onrender.com'
+  'https://o7-dashboard.vercel.app'
 ];
 
 app.use(cors({
