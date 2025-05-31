@@ -54,6 +54,21 @@ router.get("/discord/guilds", requireLogin, async (req, res) => {
   }
 });
 
+
+//// ────────────────
+// 
+// 📸 Récupération de l'avatar Discord
+// ────────────────
+
+router.get("/me", requireLogin, (req, res) => {
+  const { username, avatar, id } = req.session.user || {};
+  const avatarUrl = avatar
+    ? `https://cdn.discordapp.com/avatars/${id}/${avatar}.png`
+    : null;
+  res.json({ username, avatarUrl });
+});
+
+
 // ────────────────
 // 🛡️ Vérification du rôle du user dans un serveur
 // ────────────────
