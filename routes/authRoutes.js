@@ -10,24 +10,7 @@ const requireLogin = require("../middlewares/requireLogin");
 const { client } = require("../services/discordBot");
 
 // ────────────────
-// 📂 Chargement des rôles amis
-function getFriendRoles() {
-  const friendRolesPath = path.resolve(__dirname, "../utils/friendRoles.json");
-  try {
-    console.log(
-      "📁 Contenu de friendRoles.json :",
-      JSON.stringify(getFriendRoles(), null, 2)
-    );
-    return JSON.parse(fs.readFileSync(friendRolesPath, "utf-8"));
-  } catch (err) {
-    console.log(
-      "📁 Contenu de friendRoles.json :",
-      JSON.stringify(getFriendRoles(), null, 2)
-    );
-    console.error("❌ Impossible de lire friendRoles.json :", err);
-    return {};
-  }
-}
+
 
 // ────────────────
 // 🔐 Authentification Discord
@@ -87,10 +70,13 @@ router.get("/verify-role", requireLogin, async (req, res) => {
   const userId = req.session?.user?.id;
   const guildId = req.query.guildId;
 
-  console.log("➡️ Reçu requête pour /verify-role avec : userId =", userId, "guildId =", guildId);
-
-  const roles = getFriendRoles();
+  const roles = {
+    "327801326861811713": "streamer",
+    "324296042084302849": "ami"
+  };
   const role = roles[userId];
+
+  console.log("➡️ Reçu requête pour /verify-role avec :", { userId, guildId });
   console.log("📂 Roles disponibles :", roles);
   console.log("🔍 Role trouvé :", role);
 
@@ -104,10 +90,10 @@ router.get("/verify-role", requireLogin, async (req, res) => {
     console.log(`👤 ${member.user.username} est membre du serveur "${guild.name}"`);
 
     if (role === "ami" || role === "streamer") {
-      console.log("🧩 Role attribué via JSON :", userId, "→", role);
+      console.log("✅ Accès autorisé");
       return res.json({ role });
     } else {
-      console.log("🧩 Role non autorisé pour :", userId, "→", role);
+      console.warn("🚫 Accès refusé : rôle non autorisé");
       return res.status(403).json({ error: "Role non autorisé" });
     }
   } catch (err) {
@@ -115,6 +101,5 @@ router.get("/verify-role", requireLogin, async (req, res) => {
     res.status(500).json({ error: "Erreur Discord bot ou permissions manquantes" });
   }
 });
-
 
 module.exports = router;
