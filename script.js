@@ -6,6 +6,7 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const session = require("express-session");
 const path = require("path");
+const cookieParser = require("cookie-parser"); // ✅ Ajouté
 
 const authRoutes = require("./routes/authRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
@@ -13,6 +14,7 @@ const shutdownRoutes = require("./routes/ShutdownRoutes");
 
 const app = express();
 app.set("trust proxy", 1); // Pour accepter les requêtes de proxy (comme sur Render)
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*" },
@@ -35,6 +37,8 @@ const allowedOrigins = [
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+app.use(cookieParser()); // ✅ DOIT être placé avant express-session
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "supersecret-key",
@@ -43,7 +47,7 @@ app.use(
     cookie: {
       secure: true, // ✅ obligatoire sur Render (HTTPS)
       httpOnly: true,
-      sameSite: "none", // ✅ pour accepter les cookies cross-origin et Pour autoriser Vercel -> Render
+      sameSite: "none", // ✅ pour accepter les cookies cross-origin (Vercel -> Render)
       maxAge: 1000 * 60 * 60 * 24, // 1 jour
     },
   })
