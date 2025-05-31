@@ -34,6 +34,9 @@ router.get("/callback", authController.callback);
 // ────────────────
 
 router.get("/discord/guilds", requireLogin, async (req, res) => {
+  // Vérifie si l'utilisateur est authentifié
+  console.log("Session reçue sur /discord/guilds:", req.session);
+
   const accessToken = req.session?.access_token;
   if (!accessToken) return res.status(401).json({ error: "Not authenticated" });
 
