@@ -12,10 +12,13 @@ const uploadRoutes = require("./routes/uploadRoutes");
 const shutdownRoutes = require("./routes/ShutdownRoutes");
 
 const app = express();
+app.set("trust proxy", 1); // Pour accepter les requêtes de proxy (comme sur Render)
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*" },
 });
+
+
 
 // Connexion bot Discord
 const { startBot } = require("./services/discordBot");
@@ -53,7 +56,7 @@ app.use(
     cookie: {
       secure: true, // ✅ obligatoire sur Render (HTTPS)
       httpOnly: true,
-      sameSite: "none", // ✅ pour accepter les cookies cross-origin
+      sameSite: "none", // ✅ pour accepter les cookies cross-origin et Pour autoriser Vercel -> Render
       maxAge: 1000 * 60 * 60 * 24, // 1 jour
     },
   })
