@@ -1,4 +1,4 @@
-require('dotenv').config();
+require("dotenv").config();
 
 const express = require("express");
 const http = require("http");
@@ -18,8 +18,6 @@ const io = new Server(server, {
   cors: { origin: "*" },
 });
 
-
-
 // Connexion bot Discord
 const { startBot } = require("./services/discordBot");
 startBot();
@@ -29,20 +27,9 @@ app.set("io", io);
 
 // CORS config autorisant le front en local ET en prod
 const allowedOrigins = [
-  'http://localhost:5173',
-  'https://o7-dashboard.vercel.app'
+  "http://localhost:5173",
+  "https://o7-dashboard.vercel.app",
 ];
-
-app.use(cors({
-  origin: (origin, callback) => {
-    // autorise les requêtes serveur à serveur sans origine
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true,
-}));
 
 // Middlewares
 app.use(express.json());
@@ -59,6 +46,19 @@ app.use(
       sameSite: "none", // ✅ pour accepter les cookies cross-origin et Pour autoriser Vercel -> Render
       maxAge: 1000 * 60 * 60 * 24, // 1 jour
     },
+  })
+);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // autorise les requêtes serveur à serveur sans origine
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
   })
 );
 
