@@ -1,4 +1,6 @@
 // File: authRoutes.js
+const path = require('path');
+
 const express = require("express");
 const router = express.Router();
 const axios = require("axios");
