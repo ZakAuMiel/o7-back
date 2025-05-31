@@ -51,8 +51,9 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false, // mettre true en HTTPS prod si tu passes par Cloudflare ou autre
+      secure: true, // ✅ obligatoire sur Render (HTTPS)
       httpOnly: true,
+      sameSite: "none", // ✅ pour accepter les cookies cross-origin
       maxAge: 1000 * 60 * 60 * 24, // 1 jour
     },
   })
