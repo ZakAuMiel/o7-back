@@ -1,4 +1,3 @@
-// index.js
 require('dotenv').config();
 
 const express = require("express");
@@ -18,20 +17,31 @@ const io = new Server(server, {
   cors: { origin: "*" },
 });
 
-//connexion bot discord
+// Connexion bot Discord
 const { startBot } = require("./services/discordBot");
 startBot();
 
-// Permet à nos controllers d'y accéder
+// Permet aux controllers d'accéder à io
 app.set("io", io);
 
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-  })
-);
+// CORS config autorisant le front en local ET en prod
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://o7-dashboard.onrender.com'
+];
 
+app.use(cors({
+  origin: (origin, callback) => {
+    // autorise les requêtes serveur à serveur sans origine
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
+
+// Middlewares
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
@@ -41,19 +51,20 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false, // true en prod HTTPS
+      secure: false, // mettre true en HTTPS prod si tu passes par Cloudflare ou autre
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24, // 1 jour
     },
   })
 );
 
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api", shutdownRoutes);
 
+// Serveur
 const PORT = process.env.PORT || 3000;
-
 server.listen(PORT, () => {
   console.log(`✅ Serveur backend démarré sur http://localhost:${PORT}`);
 });
