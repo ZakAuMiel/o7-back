@@ -56,7 +56,7 @@ exports.callback = async (req, res) => {
     console.log(`✅ ${userData.username} connecté (ID: ${userData.id})`);
 
     // 🔁 Redirige vers le front
-    const redirectFront = 'https://o7-dashboard.onrender.com/select-server'|| 'http://localhost:5173/select-server';
+    const redirectFront = process.env.FRONTEND_REDIRECT_URL || 'http://localhost:5173/select-server';
     res.redirect(redirectFront);
   } catch (error) {
     console.error('❌ Discord OAuth2 Error:', error);
