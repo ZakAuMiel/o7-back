@@ -65,7 +65,7 @@ exports.callback = async (req, res) => {
     console.log("👉 Redirection vers le front :", redirectFront);
 
     setTimeout(() => {
-      res.redirect(process.env.FRONTEND_REDIRECT_URL);
+      res.redirect(`${process.env.FRONTEND_REDIRECT_URL}/#/select-server`);
     }, 500); // ← laisse le temps au cookie de s’enregistrer dans le navigateur
   } catch (error) {
     console.error("❌ Discord OAuth2 Error:", error);
