@@ -1,5 +1,5 @@
 // File: authRoutes.js
-const path = require('path');
+const path = require("path");
 
 const express = require("express");
 const router = express.Router();
@@ -8,15 +8,17 @@ const axios = require("axios");
 const authController = require("../controllers/authController");
 const requireLogin = require("../middlewares/requireLogin");
 const { client } = require("../services/discordBot");
-const friendRolesPath = path.join(__dirname, "../utils/friendRoles.json");
 
 
 // ────────────────
 // 📂 Chargement des rôles amis
 function getFriendRoles() {
+  const friendRolesPath = path.resolve(__dirname, "../utils/friendRoles.json");
   try {
+    console.log("📁 Contenu de friendRoles.json :", JSON.stringify(getFriendRoles(), null, 2));
     return JSON.parse(fs.readFileSync(friendRolesPath, "utf-8"));
   } catch (err) {
+    console.log("📁 Contenu de friendRoles.json :", JSON.stringify(getFriendRoles(), null, 2));
     console.error("❌ Impossible de lire friendRoles.json :", err);
     return {};
   }
@@ -59,9 +61,8 @@ router.get("/discord/guilds", requireLogin, async (req, res) => {
   }
 });
 
-
 //// ────────────────
-// 
+//
 // 📸 Récupération de l'avatar Discord
 // ────────────────
 
@@ -80,6 +81,7 @@ router.get("/me", requireLogin, (req, res) => {
 router.get("/verify-role", requireLogin, async (req, res) => {
   const userId = req.session?.user?.id;
   const guildId = req.query.guildId;
+  const role = getFriendRoles()[userId];
 
   if (!userId || !guildId) {
     return res.status(400).json({ error: "Missing user or guild ID" });
@@ -88,18 +90,24 @@ router.get("/verify-role", requireLogin, async (req, res) => {
   try {
     const guild = await client.guilds.fetch(guildId);
     const member = await guild.members.fetch(userId);
-    console.log(`👤 ${member.user.username} est membre du serveur "${guild.name}"`);
+    console.log(
+      `👤 ${member.user.username} est membre du serveur "${guild.name}"`
+    );
 
     const role = getFriendRoles()[userId];
 
     if (role === "ami" || role === "streamer") {
+      console.log("🧩 Role attribué via JSON :", userId, "→", role);
       return res.json({ role });
     } else {
+      console.log("🧩 Role attribué via JSON :", userId, "→", role);
       return res.status(403).json({ error: "Role non autorisé" });
     }
   } catch (err) {
     console.error("❌ Erreur vérif rôle:", err);
-    res.status(500).json({ error: "Erreur Discord bot ou permissions manquantes" });
+    res
+      .status(500)
+      .json({ error: "Erreur Discord bot ou permissions manquantes" });
   }
 });
 
