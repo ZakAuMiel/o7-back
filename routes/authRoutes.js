@@ -85,11 +85,6 @@ router.get("/verify-role", requireLogin, async (req, res) => {
   const userId = req.session?.user?.id;
   const guildId = req.query.guildId;
 
-  // Liste des noms de rôles autorisés
-  const allowedRoles = ["ami", "streamer"];
-
-  console.log("➡️ Reçu requête pour /verify-role avec :", { userId, guildId });
-
   if (!userId || !guildId) {
     return res.status(400).json({ error: "Missing user or guild ID" });
   }
@@ -97,29 +92,35 @@ router.get("/verify-role", requireLogin, async (req, res) => {
   try {
     const guild = await client.guilds.fetch(guildId);
     const member = await guild.members.fetch(userId);
-    const allRoles = await guild.roles.fetch();
 
-    // Obtenir les rôles du membre
-    const memberRoleNames = member.roles.cache.map(role => role.name.toLowerCase());
+    const memberRoles = member.roles.cache.map(r => r.name.toLowerCase());
 
-    console.log("👤 Rôles de l'utilisateur :", memberRoleNames);
-
-    // Vérifier s’il a un rôle autorisé
-    const hasAllowedRole = memberRoleNames.some(roleName =>
-      allowedRoles.includes(roleName)
+    const { rows } = await db.query(
+      "SELECT roleName, accessLevel FROM allowed_roles WHERE guildId = $1",
+      [guildId]
     );
 
-    if (hasAllowedRole) {
-      console.log("✅ Accès autorisé");
-      return res.json({ authorized: true });
-    } else {
-      console.warn("🚫 Accès refusé : aucun rôle autorisé trouvé");
-      return res.status(403).json({ authorized: false });
+    const allowedRoles = rows.map(r => r.rolename.toLowerCase());
+    const roleLevels = Object.fromEntries(
+      rows.map(r => [r.rolename.toLowerCase(), r.accesslevel || "user"])
+    );
+
+    const matchedRole = memberRoles.find(r => allowedRoles.includes(r));
+
+    if (matchedRole) {
+      return res.json({
+        authorized: true,
+        role: matchedRole,
+        accessLevel: roleLevels[matchedRole],
+      });
     }
+
+    return res.status(403).json({ authorized: false });
   } catch (err) {
     console.error("❌ Erreur vérif rôle:", err);
-    res.status(500).json({ error: "Erreur Discord bot ou permissions manquantes" });
+    return res.status(500).json({ error: "Erreur interne Discord ou DB" });
   }
 });
+
 
 module.exports = router;
