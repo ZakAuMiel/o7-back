@@ -40,6 +40,7 @@ app.set("io", io);
 const allowedOrigins = [
   "http://localhost:5173",
   "https://o7-dashboard.vercel.app",
+  "https://o7-back-production.up.railway.app"
 ];
 
 // Middlewares
