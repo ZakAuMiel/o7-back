@@ -96,7 +96,7 @@ router.get("/verify-role", requireLogin, async (req, res) => {
     const memberRoles = member.roles.cache.map(r => r.name.toLowerCase());
 
     const { rows } = await db.query(
-      "SELECT roleName, accessLevel FROM allowed_roles WHERE guildId = $1",
+      "SELECT rolename, accessLevel FROM allowed_roles WHERE guildId = $1",
       [guildId]
     );
 
@@ -132,29 +132,29 @@ router.get("/list-allowed-users", requireLogin, async (req, res) => {
 
   try {
     const { rows } = await db.query(
-      "SELECT userId, roleName FROM allowed_roles WHERE guildId = $1",
+      "SELECT userid, rolename FROM allowed_roles WHERE guildId = $1",
       [guildId]
     );
 
     const users = await Promise.all(
-      rows.map(async ({ userId, roleName }) => {
+      rows.map(async ({ userid, rolename }) => {
         try {
           const member = await client.guilds.cache
             .get(guildId)
-            ?.members.fetch(userId);
+            ?.members.fetch(userid);
 
           const avatarUrl = member.user.avatar
             ? `https://cdn.discordapp.com/avatars/${member.user.id}/${member.user.avatar}.png`
             : null;
 
           return {
-            userId,
+            userId: userid,
             username: member.user.username,
             avatarUrl,
-            roleName,
+            roleName: rolename,
           };
         } catch (err) {
-          console.warn(`⚠️ Utilisateur ${userId} introuvable`);
+          console.warn(`⚠️ Utilisateur ${userid} introuvable`);
           return null;
         }
       })
