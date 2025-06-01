@@ -8,9 +8,24 @@ const axios = require("axios");
 const authController = require("../controllers/authController");
 const requireLogin = require("../middlewares/requireLogin");
 const { client } = require("../services/discordBot");
+const db = require("../services/db");
+
+
+
+// ────────────────
+// Route temporaire pour la database
 
 // ────────────────
 
+router.get("/db-test", async (req, res) => {
+  try {
+    const result = await db.query("SELECT NOW() AS current_time");
+    res.json({ currentTime: result.rows[0].current_time });
+  } catch (err) {
+    console.error("❌ Erreur base de données:", err);
+    res.status(500).json({ error: "Erreur base de données" });
+  }
+});
 
 // ────────────────
 // 🔐 Authentification Discord
@@ -70,15 +85,10 @@ router.get("/verify-role", requireLogin, async (req, res) => {
   const userId = req.session?.user?.id;
   const guildId = req.query.guildId;
 
-  const roles = {
-    "327801326861811713": "streamer",
-    "324296042084302849": "ami"
-  };
-  const role = roles[userId];
+  // Liste des noms de rôles autorisés
+  const allowedRoles = ["ami", "streamer"];
 
   console.log("➡️ Reçu requête pour /verify-role avec :", { userId, guildId });
-  console.log("📂 Roles disponibles :", roles);
-  console.log("🔍 Role trouvé :", role);
 
   if (!userId || !guildId) {
     return res.status(400).json({ error: "Missing user or guild ID" });
@@ -87,14 +97,24 @@ router.get("/verify-role", requireLogin, async (req, res) => {
   try {
     const guild = await client.guilds.fetch(guildId);
     const member = await guild.members.fetch(userId);
-    console.log(`👤 ${member.user.username} est membre du serveur "${guild.name}"`);
+    const allRoles = await guild.roles.fetch();
 
-    if (role === "ami" || role === "streamer") {
+    // Obtenir les rôles du membre
+    const memberRoleNames = member.roles.cache.map(role => role.name.toLowerCase());
+
+    console.log("👤 Rôles de l'utilisateur :", memberRoleNames);
+
+    // Vérifier s’il a un rôle autorisé
+    const hasAllowedRole = memberRoleNames.some(roleName =>
+      allowedRoles.includes(roleName)
+    );
+
+    if (hasAllowedRole) {
       console.log("✅ Accès autorisé");
-      return res.json({ role });
+      return res.json({ authorized: true });
     } else {
-      console.warn("🚫 Accès refusé : rôle non autorisé");
-      return res.status(403).json({ error: "Role non autorisé" });
+      console.warn("🚫 Accès refusé : aucun rôle autorisé trouvé");
+      return res.status(403).json({ authorized: false });
     }
   } catch (err) {
     console.error("❌ Erreur vérif rôle:", err);
