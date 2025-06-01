@@ -1,100 +1,111 @@
 const {
   Client,
   GatewayIntentBits,
-  Events,
-  Collection,
-  REST,
-  Routes
+  Events
 } = require('discord.js');
 
 const dotenv = require('dotenv');
-const fs = require('fs');
-const path = require('path');
 dotenv.config();
 
-const guildId = '1372250240597622985'; // Ton serveur Discord
-const ownerId = '327801326861811713'; // Ton ID Discord pour les messages privés
+const db = require('./db');
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.GuildMembers
   ]
 });
 
-// 📦 Chargement dynamique des commandes
-client.commands = new Collection();
-const commands = [];
+const ALLOWED_ROLE_NAMES = ['ami', 'streamer'];
 
-const commandsPath = path.join(__dirname, '../commands');
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+// 🔄 Sync tous les membres avec rôle autorisé
+const syncAllowedRoles = async (guild) => {
+  try {
+    const members = await guild.members.fetch();
 
-for (const file of commandFiles) {
-  const command = require(path.join(commandsPath, file));
-  if (!command.data || !command.execute) {
-    console.warn(`⚠️ La commande "${file}" est incomplète.`);
-    continue;
+    for (const [, member] of members) {
+      for (const role of member.roles.cache.values()) {
+        const roleName = role.name.toLowerCase();
+        if (!ALLOWED_ROLE_NAMES.includes(roleName)) continue;
+
+        const exists = await db.query(
+          "SELECT * FROM allowed_roles WHERE userId = $1 AND guildId = $2",
+          [member.id, guild.id]
+        );
+
+        if (exists.rows.length === 0) {
+          await db.query(
+            "INSERT INTO allowed_roles (userId, guildId, roleName, accessLevel) VALUES ($1, $2, $3, $4)",
+            [
+              member.id,
+              guild.id,
+              roleName,
+              roleName === 'streamer' ? 'admin' : 'user'
+            ]
+          );
+          console.log(`✅ Ajouté : ${member.user.username} (${roleName})`);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("❌ Erreur syncAllowedRoles :", err);
   }
+};
 
-  console.log(`📦 Commande chargée : ${command.data.name}`);
-  client.commands.set(command.data.name, command);
-  commands.push(command.data.toJSON());
-}
-
-// ✅ Lorsque le bot est prêt
+// ✅ Quand le bot est prêt
 client.once(Events.ClientReady, async () => {
   console.log(`✅ Bot connecté en tant que ${client.user.tag}`);
 
-  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN);
-
-  try {
-    await rest.put(
-      Routes.applicationGuildCommands(client.user.id, guildId),
-      { body: commands }
+  for (const [guildId, guild] of client.guilds.cache) {
+    await db.query(
+      "INSERT INTO guilds (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [guild.id, guild.name]
     );
-    console.log(`🚀 Commandes slash enregistrées : ${commands.map(c => c.name).join(', ')}`);
-  } catch (err) {
-    console.error('❌ Échec de l’enregistrement des commandes slash :', err);
-  }
-
-  // ✅ Envoi d’un message privé à Zakaria
-  try {
-    const zak = await client.users.fetch(ownerId);
-    if (zak) {
-      await zak.send('✅ **07-Logger** est maintenant en ligne et opérationnel !');
-    }
-  } catch (err) {
-    console.error('❌ Impossible d’envoyer le message de démarrage :', err);
+    await syncAllowedRoles(guild);
   }
 });
 
-// 🎮 Gestion des interactions slash
-client.on(Events.InteractionCreate, async interaction => {
-  if (!interaction.isChatInputCommand()) return;
+// 🔁 Ajout de membre ou rôle
+client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+  const addedRoles = newMember.roles.cache.filter(
+    role => !oldMember.roles.cache.has(role.id)
+  );
 
-  const command = client.commands.get(interaction.commandName);
-  if (!command) {
-    console.warn(`❓ Commande introuvable : ${interaction.commandName}`);
-    return;
-  }
+  for (const [, role] of addedRoles) {
+    const roleName = role.name.toLowerCase();
+    if (!ALLOWED_ROLE_NAMES.includes(roleName)) return;
 
-  try {
-    await command.execute(interaction);
-  } catch (err) {
-    console.error(`❌ Erreur pendant la commande "/${interaction.commandName}" :`, err);
-    if (interaction.replied || interaction.deferred) {
-      await interaction.editReply('❌ Une erreur est survenue pendant l’exécution.');
-    } else {
-      await interaction.reply({ content: '❌ Une erreur est survenue.', ephemeral: true });
+    const exists = await db.query(
+      "SELECT * FROM allowed_roles WHERE userId = $1 AND guildId = $2",
+      [newMember.id, newMember.guild.id]
+    );
+
+    if (exists.rows.length === 0) {
+      await db.query(
+        "INSERT INTO allowed_roles (userId, guildId, roleName, accessLevel) VALUES ($1, $2, $3, $4)",
+        [
+          newMember.id,
+          newMember.guild.id,
+          roleName,
+          roleName === 'streamer' ? 'admin' : 'user'
+        ]
+      );
+      console.log(`🆕 Nouveau rôle : ${newMember.user.username} (${roleName})`);
     }
   }
 });
 
-// 🔁 Protection anti crash non catché
-process.on('unhandledRejection', error => {
-  console.error('💥 Unhandled Promise Rejection :', error);
+// 🔄 Quand le bot rejoint un nouveau serveur
+client.on(Events.GuildCreate, async (guild) => {
+  await db.query(
+    "INSERT INTO guilds (id, name) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+    [guild.id, guild.name]
+  );
+  await syncAllowedRoles(guild);
+});
+
+process.on('unhandledRejection', err => {
+  console.error('💥 Unhandled Promise:', err);
 });
 
 module.exports = {
