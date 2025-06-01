@@ -7,49 +7,54 @@ const cors = require("cors");
 const session = require("express-session");
 const path = require("path");
 const fs = require("fs");
-const cookieParser = require("cookie-parser"); // ✅ Ajouté
+const cookieParser = require("cookie-parser");
 
 const authRoutes = require("./routes/authRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const shutdownRoutes = require("./routes/ShutdownRoutes");
 
 const app = express();
-app.set("trust proxy", 1); // Pour accepter les requêtes de proxy (comme sur Render)
+app.set("trust proxy", 1);
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: "*" },
+  cors: {
+    origin: "*", // Autorise tous les domaines pour Socket.IO
+    methods: ["GET", "POST"]
+  }
+});
+
+// 🔁 Fix CORS pour overlay sans Origin (null ou undefined)
+io.engine.on("headers", (headers) => {
+  headers["Access-Control-Allow-Origin"] = "*";
 });
 
 const uploadDir = path.join(__dirname, "uploads");
-
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
   console.log("📁 Dossier 'uploads' créé automatiquement.");
 }
 
-
-// Connexion bot Discord
+// 🤖 Bot Discord
 const { startBot } = require("./services/discordBot");
 startBot();
 
-// Permet aux controllers d'accéder à io
+// 🔌 Socket.io accessible dans les controllers
 app.set("io", io);
 
-// CORS config autorisant le front en local ET en prod
+// 🌍 Origines autorisées (front et overlay)
 const allowedOrigins = [
   "http://localhost:5173",
   "https://o7-dashboard.vercel.app",
   "https://o7-back-production.up.railway.app"
 ];
 
-// Middlewares
+// 📦 Middlewares
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/Overlay", express.static(path.join(__dirname, "public/Overlay")));
 
-app.use(cookieParser()); // ✅ DOIT être placé avant express-session
-// Middleware pour gérer les sessions
-app.use(express.static(path.join(__dirname, "public")));
+app.use(cookieParser());
 
 app.use(
   session({
@@ -57,19 +62,19 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: true, // ✅ obligatoire sur Render (HTTPS)
+      secure: true,
       httpOnly: true,
-      sameSite: "none", // ✅ pour accepter les cookies cross-origin (Vercel -> Render)
-      maxAge: 1000 * 60 * 60 * 24, // 1 jour
+      sameSite: "none",
+      maxAge: 1000 * 60 * 60 * 24,
     },
   })
 );
 
+// 🛡️ CORS HTTP Express
 app.use(
   cors({
     origin: (origin, callback) => {
-      // autorise les requêtes serveur à serveur sans origine
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin || allowedOrigins.includes(origin) || origin === "null") {
         return callback(null, true);
       }
       return callback(new Error("Not allowed by CORS"));
@@ -78,14 +83,13 @@ app.use(
   })
 );
 
-// Routes
+// 📁 Routes API
 app.use("/api/auth", authRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api", shutdownRoutes);
 
-// Serveur
+// 🚀 Lancement serveur
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
-
