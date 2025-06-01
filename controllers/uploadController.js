@@ -16,10 +16,10 @@ const uploadMedia = async (req, res) => {
     const io = req.app.get('io');
 
     let mediaUrl = null;
-    let type = 'image'; // par défaut
-    let filePath = null; // chemin absolu du fichier
+    let type = 'image';
+    let filePath = null;
 
-    // 🧠 Déterminer la source du média (priorité au lien externe)
+    // 📦 Source prioritaire = lien externe
     if (externalUrl && externalUrl.trim() !== '') {
       mediaUrl = externalUrl.trim();
       type = mediaUrl.includes('youtu') || mediaUrl.includes('tiktok') || mediaUrl.includes('mp4')
@@ -28,9 +28,13 @@ const uploadMedia = async (req, res) => {
     } else if (file) {
       mediaUrl = `/uploads/${file.filename}`;
       type = file.mimetype.startsWith('video') ? 'video' : 'image';
-      filePath = path.join(__dirname, '..', 'uploads', file.filename);
+      filePath = path.join(__dirname, '..', 'public', 'uploads', file.filename);
 
-      // ⏳ Suppression programmée dans 5 minutes
+      // 📁 Déplacement du fichier dans `public/uploads`
+      const tmpPath = path.join(__dirname, '..', 'uploads', file.filename);
+      fs.renameSync(tmpPath, filePath);
+
+      // 🕒 Auto-suppression après 5 min
       setTimeout(() => {
         fs.unlink(filePath, (err) => {
           if (err) {
@@ -39,7 +43,7 @@ const uploadMedia = async (req, res) => {
             console.log(`🗑️ Fichier supprimé automatiquement : ${file.filename}`);
           }
         });
-      }, 5 * 60 * 1000); // 5 minutes
+      }, 5 * 60 * 1000);
     } else {
       return res.status(400).json({ message: 'Aucun média fourni' });
     }

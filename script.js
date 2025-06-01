@@ -19,30 +19,33 @@ app.set("trust proxy", 1);
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // Autorise tous les domaines pour Socket.IO
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
 
-// 🔁 Fix CORS pour overlay sans Origin (null ou undefined)
+// 🔁 CORS fix overlay
 io.engine.on("headers", (headers) => {
   headers["Access-Control-Allow-Origin"] = "*";
 });
 
+// 📁 Crée /uploads (tmp) ET /public/uploads (public) si nécessaire
 const uploadDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-  console.log("📁 Dossier 'uploads' créé automatiquement.");
-}
+const publicUploadsDir = path.join(__dirname, "public", "uploads");
+
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+if (!fs.existsSync(publicUploadsDir)) fs.mkdirSync(publicUploadsDir);
+
+console.log("📁 Dossiers de fichiers OK");
 
 // 🤖 Bot Discord
 const { startBot } = require("./services/discordBot");
 startBot();
 
-// 🔌 Socket.io accessible dans les controllers
+// 🔌 io pour tous
 app.set("io", io);
 
-// 🌍 Origines autorisées (front et overlay)
+// 🌐 Frontends autorisés
 const allowedOrigins = [
   "http://localhost:5173",
   "https://o7-dashboard.vercel.app",
@@ -51,7 +54,9 @@ const allowedOrigins = [
 
 // 📦 Middlewares
 app.use(express.json());
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// 🧱 Fichiers statiques
+app.use(express.static(path.join(__dirname, "public"))); // sert `public/` et donc `uploads/`
 app.use("/Overlay", express.static(path.join(__dirname, "public/Overlay")));
 
 app.use(cookieParser());
@@ -70,7 +75,7 @@ app.use(
   })
 );
 
-// 🛡️ CORS HTTP Express
+// 🔐 CORS pour routes Express
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -83,7 +88,7 @@ app.use(
   })
 );
 
-// 📁 Routes API
+// 🌐 Routes API
 app.use("/api/auth", authRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api", shutdownRoutes);
