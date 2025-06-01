@@ -122,5 +122,50 @@ router.get("/verify-role", requireLogin, async (req, res) => {
   }
 });
 
+// 📄 Liste des membres autorisés dans un serveur
+router.get("/list-allowed-users", requireLogin, async (req, res) => {
+  const guildId = req.query.guildId;
+
+  if (!guildId) {
+    return res.status(400).json({ error: "Missing guild ID" });
+  }
+
+  try {
+    const { rows } = await db.query(
+      "SELECT userId, roleName FROM allowed_roles WHERE guildId = $1",
+      [guildId]
+    );
+
+    const users = await Promise.all(
+      rows.map(async ({ userId, roleName }) => {
+        try {
+          const member = await client.guilds.cache
+            .get(guildId)
+            ?.members.fetch(userId);
+
+          const avatarUrl = member.user.avatar
+            ? `https://cdn.discordapp.com/avatars/${member.user.id}/${member.user.avatar}.png`
+            : null;
+
+          return {
+            userId,
+            username: member.user.username,
+            avatarUrl,
+            roleName,
+          };
+        } catch (err) {
+          console.warn(`⚠️ Utilisateur ${userId} introuvable`);
+          return null;
+        }
+      })
+    );
+
+    res.json(users.filter(Boolean)); // enlève les `null`
+  } catch (err) {
+    console.error("❌ Erreur liste membres autorisés :", err);
+    res.status(500).json({ error: "Erreur récupération membres autorisés" });
+  }
+});
+
 
 module.exports = router;
