@@ -131,7 +131,18 @@
           media.autoplay = true;
           media.playsInline = true;
           media.controls = false;
-          media.muted = false; // 🔥 obligatoire pour autoplay sans user interaction
+          media.muted = false; // Important pour autoriser le son
+          media.volume = 1; // Assure que le son est à fond
+
+          // 🔊 Force la lecture
+          media.oncanplay = () => {
+            const playPromise = media.play();
+            if (playPromise !== undefined) {
+              playPromise.catch((error) => {
+                console.error("Erreur lecture vidéo :", error);
+              });
+            }
+          };
         }
 
         wrapper.appendChild(media);
