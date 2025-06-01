@@ -6,6 +6,7 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const session = require("express-session");
 const path = require("path");
+const fs = require("fs");
 const cookieParser = require("cookie-parser"); // ✅ Ajouté
 
 const authRoutes = require("./routes/authRoutes");
@@ -19,6 +20,14 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*" },
 });
+
+const uploadDir = path.join(__dirname, "uploads");
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+  console.log("📁 Dossier 'uploads' créé automatiquement.");
+}
+
 
 // Connexion bot Discord
 const { startBot } = require("./services/discordBot");
