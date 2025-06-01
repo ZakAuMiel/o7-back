@@ -131,17 +131,12 @@
           media.autoplay = true;
           media.playsInline = true;
           media.controls = false;
-          media.muted = false; // Important pour autoriser le son
-          media.volume = 1; // Assure que le son est à fond
+          media.muted = false; // 👈 très important
+          media.volume = 1; // 👈 force le volume à fond
+          media.setAttribute("crossorigin", "anonymous");
 
-          // 🔊 Force la lecture
           media.oncanplay = () => {
-            const playPromise = media.play();
-            if (playPromise !== undefined) {
-              playPromise.catch((error) => {
-                console.error("Erreur lecture vidéo :", error);
-              });
-            }
+            media.play().catch((err) => console.warn("Erreur lecture :", err));
           };
         }
 
@@ -169,7 +164,6 @@
       });
 
       socket.on("shutdown-overlay", () => {
-        console.log("🔴 Shutdown overlay via WebSocket !");
         const media = wrapper.querySelector("video");
         if (media) {
           media.pause();
