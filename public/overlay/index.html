@@ -96,7 +96,6 @@
         avatar.src = "";
         username.textContent = "";
         message.textContent = "";
-        container.classList.remove("audio-mode");
         container.style.display = "none";
       }
 
@@ -114,21 +113,29 @@
         username.textContent = data.username || "Anonyme";
         avatar.src = data.avatarUrl || "";
 
-        // Gestion audio
-        if (data.type === "audio") {
-          container.classList.add("audio-mode");
-          container.style.display = "flex";
+        const isAudio = data.type === "audio";
+        const mediaUrl = location.origin + data.url;
 
+        if (isAudio) {
+          container.style.display = "flex";
+          wrapper.innerHTML = ""; // ne pas afficher d'image
+
+          // 🔊 Création de l'élément audio
           const audio = document.createElement("audio");
-          audio.src = location.origin + data.url;
+          audio.src = mediaUrl;
           audio.autoplay = true;
           audio.controls = false;
           audio.volume = 1;
           audio.muted = false;
+          audio.setAttribute("crossorigin", "anonymous");
+
+          // ➕ Très important : ajouter au DOM
+          wrapper.appendChild(audio);
 
           audio.oncanplay = () => {
             audio
               .play()
+              .then(() => console.log("🎵 Audio lancé"))
               .catch((err) => console.warn("Erreur lecture audio :", err));
           };
 
@@ -140,20 +147,18 @@
 
           setTimeout(() => {
             audio.pause();
+            audio.remove();
             hideOverlay();
           }, 7000);
 
           return;
         }
 
-        // Gestion image ou vidéo
-        container.classList.remove("audio-mode");
-        container.style.display = "flex";
-
+        // 🎥 Image ou vidéo
         const media = document.createElement(
           data.type === "video" ? "video" : "img"
         );
-        media.src = location.origin + data.url;
+        media.src = mediaUrl;
 
         if (data.type === "video") {
           media.autoplay = true;
@@ -161,22 +166,47 @@
           media.controls = false;
           media.muted = false;
           media.volume = 1;
-          media.onended = hideOverlay;
-        } else {
-          setTimeout(hideOverlay, data.duration || 5000);
+          media.setAttribute("crossorigin", "anonymous");
+
+          media.oncanplay = () => {
+            media
+              .play()
+              .catch((err) => console.warn("Erreur lecture vidéo :", err));
+          };
         }
 
         wrapper.appendChild(media);
-
-        if (data.message) {
-          message.textContent = data.message;
-        }
+        container.style.display = "flex";
 
         gsap.fromTo(
           container,
           { opacity: 0, scale: 0.8 },
           { opacity: 1, scale: 1, duration: 0.5 }
         );
+
+        if (data.message) {
+          message.textContent = data.message;
+        }
+
+        const duration =
+          !isNaN(Number(data.duration)) && Number(data.duration) > 0
+            ? Number(data.duration)
+            : data.type === "image"
+            ? 5000
+            : null;
+
+        if (duration) {
+          setTimeout(() => {
+            if (media.tagName === "VIDEO") {
+              media.pause();
+              media.removeAttribute("src");
+              media.load();
+            }
+            hideOverlay();
+          }, duration);
+        } else if (data.type === "video") {
+          media.onended = () => hideOverlay();
+        }
       });
 
       socket.on("shutdown-overlay", hideOverlay);
