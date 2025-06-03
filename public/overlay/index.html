@@ -16,71 +16,57 @@
         overflow: hidden;
         width: 100vw;
         height: 100vh;
-        font-family: "Rubik", sans-serif;
       }
 
       #container {
         position: absolute;
-        display: none;
-        flex-direction: column;
-        align-items: center;
-        gap: 20px;
-        z-index: 9999;
-      }
-
-      #container.audio-mode {
-        top: 24px;
-        right: 24px;
-        left: auto;
-        transform: none;
-        align-items: flex-end;
-      }
-
-      #container:not(.audio-mode) {
         top: 50%;
         left: 50%;
-        transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%) scale(0.8);
+        opacity: 0;
+        background: rgba(0, 0, 0, 0); /* ⬅️ background totalement transparent */
+        padding: 20px;
+        border-radius: 12px;
+        color: white;
+        font-family: "Rubik", sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        max-width: 90vw;
       }
 
-      .avatar-wrapper {
-        transition: transform 0.4s ease;
-      }
-
-      .avatar-wrapper:hover {
-        transform: rotate(10deg) scale(1.1);
-        filter: drop-shadow(0 0 10px #aa557f);
+      #user-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
       }
 
       #avatar {
-        width: 100px;
-        height: 100px;
+        width: 48px;
+        height: 48px;
         border-radius: 50%;
+        border: 2px solid white;
         object-fit: cover;
-        border: 4px solid white;
       }
 
       #username {
-        font-size: 3rem;
-        color: white;
-        text-shadow: -2px -2px 0 #aa557f, 2px -2px 0 #aa557f, -2px 2px 0 #aa557f,
-          2px 2px 0 #aa557f;
+        font-weight: bold;
+        font-size: 1.2rem;
       }
 
-      #media-wrapper {
-        max-width: 95vw;
-        max-height: 80vh;
+      video,
+      img {
+        max-width: 80vw;
+        max-height: 60vh;
         border-radius: 10px;
-        overflow: hidden;
+        background: black;
       }
 
       #message {
-        font-size: 3rem;
-        color: white;
-        text-shadow: -2px -2px 0 #aa557f, 2px -2px 0 #aa557f, -2px 2px 0 #aa557f,
-          2px 2px 0 #aa557f;
+        font-size: 1rem;
+        color: #f7e6e6;
         text-align: center;
-        line-height: 1.2;
-        margin-top: 20px;
       }
     </style>
   </head>
@@ -128,23 +114,47 @@
         username.textContent = data.username || "Anonyme";
         avatar.src = data.avatarUrl || "";
 
+        // Gestion audio
         if (data.type === "audio") {
           container.classList.add("audio-mode");
-        } else {
-          container.classList.remove("audio-mode");
+          container.style.display = "flex";
+
+          const audio = document.createElement("audio");
+          audio.src = location.origin + data.url;
+          audio.autoplay = true;
+          audio.controls = false;
+          audio.volume = 1;
+          audio.muted = false;
+
+          audio.oncanplay = () => {
+            audio
+              .play()
+              .catch((err) => console.warn("Erreur lecture audio :", err));
+          };
+
+          gsap.fromTo(
+            container,
+            { opacity: 0, scale: 0.8 },
+            { opacity: 1, scale: 1, duration: 0.5 }
+          );
+
+          setTimeout(() => {
+            audio.pause();
+            hideOverlay();
+          }, 7000);
+
+          return;
         }
 
+        // Gestion image ou vidéo
+        container.classList.remove("audio-mode");
         container.style.display = "flex";
-        gsap.fromTo(container, { opacity: 0 }, { opacity: 1, duration: 0.4 });
-
-        if (data.type === "audio") {
-          return setTimeout(hideOverlay, 7000);
-        }
 
         const media = document.createElement(
           data.type === "video" ? "video" : "img"
         );
         media.src = location.origin + data.url;
+
         if (data.type === "video") {
           media.autoplay = true;
           media.playsInline = true;
@@ -161,6 +171,12 @@
         if (data.message) {
           message.textContent = data.message;
         }
+
+        gsap.fromTo(
+          container,
+          { opacity: 0, scale: 0.8 },
+          { opacity: 1, scale: 1, duration: 0.5 }
+        );
       });
 
       socket.on("shutdown-overlay", hideOverlay);
