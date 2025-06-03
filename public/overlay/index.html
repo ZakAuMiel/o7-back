@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <title>Overlay</title>
+    <!-- Font Rubik -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
       html,
       body {
@@ -12,6 +17,7 @@
         overflow: hidden;
         width: 100vw;
         height: 100vh;
+        font-family: "Rubik", sans-serif;
       }
 
       #container {
@@ -24,7 +30,6 @@
         padding: 20px;
         border-radius: 12px;
         color: white;
-        font-family: sans-serif;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -44,28 +49,74 @@
         border-radius: 50%;
         border: 2px solid white;
         object-fit: cover;
+        transition: box-shadow 0.3s ease;
+      }
+
+      #avatar.glow {
+        box-shadow: 0 0 20px rgba(0, 255, 120, 0.8);
       }
 
       #username {
-        font-weight: bold;
-        font-size: 1.2rem;
+        font-weight: 700;
+        font-size: 1.4rem;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
       }
 
       video,
-      img {
+      img,
+      #audio-icon {
         max-width: 80vw;
         max-height: 60vh;
         border-radius: 10px;
         background: black;
       }
 
+      #audio-icon {
+        width: 120px;
+        height: 120px;
+        object-fit: contain;
+      }
+
       #message {
-        font-size: 1rem;
+        font-size: 1.2rem;
+        font-weight: 500;
         color: #f7e6e6;
         text-align: center;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+      }
+
+      #progress-bar {
+        width: 100%;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+
+      #progress-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(to right, #00ff99, #00ccff);
+      }
+
+      /* Audio mode */
+      .audio-mode #container {
+        position: fixed !important;
+        top: 20px;
+        right: 20px;
+        transform: none !important;
+        background: rgba(0, 0, 0, 0.85);
+        padding: 12px 16px;
+        gap: 8px;
+        border-radius: 10px;
+        box-shadow: 0 0 15px rgba(0, 255, 120, 0.2);
+        flex-direction: column;
+        align-items: flex-end;
+        max-width: 250px;
       }
     </style>
   </head>
+
   <body>
     <div id="container" style="display: none">
       <div id="user-info">
@@ -74,8 +125,10 @@
       </div>
       <div id="media-wrapper"></div>
       <div id="message"></div>
+      <div id="progress-bar"><div id="progress-fill"></div></div>
     </div>
 
+    <!-- Scripts -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script>
@@ -88,6 +141,7 @@
       const usernameEl = document.getElementById("username");
       const avatarEl = document.getElementById("avatar");
       const messageEl = document.getElementById("message");
+      const progressFill = document.getElementById("progress-fill");
 
       function resetOverlay() {
         wrapper.innerHTML = "";
@@ -95,76 +149,166 @@
         avatarEl.src = "";
         usernameEl.textContent = "";
         container.style.display = "none";
+        avatarEl.classList.remove("glow");
+        progressFill.style.width = "0%";
+        gsap.killTweensOf(progressFill);
+        container.classList.remove("audio-mode");
       }
 
       function hideOverlay() {
-        gsap.to(container, {
-          opacity: 0,
-          scale: 0.8,
-          duration: 0.5,
-          onComplete: resetOverlay,
-        });
+        const tl = gsap.timeline({ onComplete: resetOverlay });
+
+        tl.to("#message", { opacity: 0, y: 20, duration: 0.3 }, 0)
+          .to("#username", { opacity: 0, x: -20, duration: 0.3 }, 0)
+          .to("#avatar", { opacity: 0, scale: 0.8, duration: 0.3 }, 0)
+          .to(wrapper, { opacity: 0, scale: 0.8, duration: 0.3 }, 0)
+          .to(
+            container,
+            {
+              opacity: 0,
+              scale: 0.5,
+              rotateZ: 5,
+              duration: 0.4,
+              ease: "power2.in",
+            },
+            0.1
+          );
       }
 
       socket.on("new-media", (data) => {
         resetOverlay();
 
-        const duration =
-          !isNaN(Number(data.duration)) && Number(data.duration) > 0
-            ? Number(data.duration)
-            : data.type === "image"
-            ? 5000
-            : null;
-
         usernameEl.textContent = data.username || "Anonyme";
         avatarEl.src = data.avatarUrl || "";
         messageEl.textContent = data.message || "";
+        avatarEl.classList.add("glow");
 
         const mediaUrl = `${location.origin}${data.url}`;
-        const media = document.createElement(
+        const duration =
+          !isNaN(Number(data.duration)) && Number(data.duration) > 0
+            ? Number(data.duration)
+            : null;
+
+        let mediaEl;
+
+        if (data.type === "audio") {
+          container.classList.add("audio-mode");
+
+          const audio = document.createElement("audio");
+          audio.src = mediaUrl;
+          audio.autoplay = true;
+          audio.controls = true;
+          audio.volume = 1;
+          audio.setAttribute("crossorigin", "anonymous");
+          audio.style.width = "200px";
+          audio.style.borderRadius = "8px";
+
+          wrapper.appendChild(audio);
+          mediaEl = audio;
+
+          container.style.display = "flex";
+
+          gsap.fromTo(
+            container,
+            { opacity: 0, y: -30 },
+            { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }
+          );
+
+          const audioDuration = duration || 7000;
+          gsap.to(progressFill, {
+            width: "100%",
+            duration: audioDuration / 1000,
+            ease: "linear",
+          });
+
+          setTimeout(hideOverlay, audioDuration);
+          return;
+        }
+
+        mediaEl = document.createElement(
           data.type === "video" ? "video" : "img"
         );
-
-        media.src = mediaUrl;
+        mediaEl.src = mediaUrl;
 
         if (data.type === "video") {
-          media.autoplay = true;
-          media.playsInline = true;
-          media.controls = false;
-          media.muted = false; // 👈 très important
-          media.volume = 1; // 👈 force le volume à fond
-          media.setAttribute("crossorigin", "anonymous");
-
-          media.oncanplay = () => {
-            media.play().catch((err) => console.warn("Erreur lecture :", err));
+          mediaEl.autoplay = true;
+          mediaEl.playsInline = true;
+          mediaEl.controls = false;
+          mediaEl.muted = false;
+          mediaEl.volume = 1;
+          mediaEl.setAttribute("crossorigin", "anonymous");
+          mediaEl.oncanplay = () => {
+            mediaEl
+              .play()
+              .catch((err) => console.warn("Erreur lecture :", err));
           };
         }
 
-        wrapper.appendChild(media);
+        wrapper.appendChild(mediaEl);
         container.style.display = "flex";
 
-        gsap.fromTo(
+        gsap.set([avatarEl, usernameEl, mediaEl, messageEl], { opacity: 0 });
+
+        const tl = gsap.timeline();
+
+        tl.fromTo(
           container,
-          { opacity: 0, scale: 0.8 },
-          { opacity: 1, scale: 1, duration: 0.5 }
-        );
+          { opacity: 0, scale: 0.5, rotateZ: -10 },
+          {
+            opacity: 1,
+            scale: 1,
+            rotateZ: 0,
+            duration: 0.5,
+            ease: "back.out(1.7)",
+          }
+        )
+          .fromTo(
+            avatarEl,
+            { opacity: 0, scale: 0.6 },
+            { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(1.5)" },
+            "-=0.3"
+          )
+          .fromTo(
+            usernameEl,
+            { opacity: 0, x: -20 },
+            { opacity: 1, x: 0, duration: 0.3, ease: "power2.out" },
+            "-=0.2"
+          )
+          .fromTo(
+            mediaEl,
+            { opacity: 0, scale: 0.9 },
+            { opacity: 1, scale: 1, duration: 0.4, ease: "power2.out" },
+            "-=0.2"
+          )
+          .fromTo(
+            messageEl,
+            { opacity: 0, y: 20 },
+            { opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.7)" },
+            "-=0.2"
+          );
 
         if (duration) {
+          gsap.to(progressFill, {
+            width: "100%",
+            duration: duration / 1000,
+            ease: "linear",
+          });
+
           setTimeout(() => {
-            if (media.tagName === "VIDEO") {
-              media.pause();
-              media.removeAttribute("src");
-              media.load();
+            if (mediaEl.tagName === "VIDEO") {
+              mediaEl.pause();
+              mediaEl.removeAttribute("src");
+              mediaEl.load();
             }
             hideOverlay();
           }, duration);
         } else if (data.type === "video") {
-          media.onended = () => hideOverlay();
+          mediaEl.onended = () => hideOverlay();
         }
       });
 
       socket.on("shutdown-overlay", () => {
-        const media = wrapper.querySelector("video");
+        const media = wrapper.querySelector("video, audio");
         if (media) {
           media.pause();
           media.removeAttribute("src");
