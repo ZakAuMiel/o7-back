@@ -3,20 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <title>Overlay</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700&display=swap" rel="stylesheet" />
     <style>
-      html,
-      body {
+      html, body {
         margin: 0;
         padding: 0;
         background: transparent;
         overflow: hidden;
         width: 100vw;
         height: 100vh;
-        font-family: "Luckiest Guy", cursive;
+        font-family: 'Rubik', sans-serif;
       }
 
       #container {
@@ -29,8 +25,8 @@
       }
 
       #container.audio-mode {
-        top: 20px;
-        right: 20px;
+        top: 24px;
+        right: 24px;
         left: auto;
         transform: none;
         align-items: flex-end;
@@ -62,13 +58,16 @@
       #username {
         font-size: 3rem;
         color: white;
-        text-shadow: -2px -2px 0 #aa557f, 2px -2px 0 #aa557f, -2px 2px 0 #aa557f,
-          2px 2px 0 #aa557f;
+        text-shadow:
+          -2px -2px 0 #aa557f,
+           2px -2px 0 #aa557f,
+          -2px  2px 0 #aa557f,
+           2px  2px 0 #aa557f;
       }
 
       #media-wrapper {
-        max-width: 90vw;
-        max-height: 60vh;
+        max-width: 95vw;
+        max-height: 80vh;
         border-radius: 10px;
         overflow: hidden;
       }
@@ -76,10 +75,14 @@
       #message {
         font-size: 3rem;
         color: white;
-        text-shadow: -2px -2px 0 #aa557f, 2px -2px 0 #aa557f, -2px 2px 0 #aa557f,
-          2px 2px 0 #aa557f;
+        text-shadow:
+          -2px -2px 0 #aa557f,
+           2px -2px 0 #aa557f,
+          -2px  2px 0 #aa557f,
+           2px  2px 0 #aa557f;
         text-align: center;
         line-height: 1.2;
+        margin-top: 20px;
       }
     </style>
   </head>
@@ -117,7 +120,7 @@
         gsap.to(container, {
           opacity: 0,
           duration: 0.5,
-          onComplete: resetOverlay,
+          onComplete: resetOverlay
         });
       }
 
@@ -140,9 +143,7 @@
           return setTimeout(hideOverlay, 7000);
         }
 
-        const media = document.createElement(
-          data.type === "video" ? "video" : "img"
-        );
+        const media = document.createElement(data.type === "video" ? "video" : "img");
         media.src = location.origin + data.url;
         if (data.type === "video") {
           media.autoplay = true;
