@@ -24,26 +24,7 @@ o7-back/
 └── server.js
 ```
 
-#### Frontend (`o7-front`)
-- Vue 3 (Composition API)
-- TailwindCSS + custom design
-- GSAP for stylish animations
-- Axios + Vue Router
-- Hosted on [Vercel](https://vercel.com/)
 
-```
-o7-front/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   ├── router/
-│   ├── utils/
-│   └── style.css
-├── public/
-└── .env
-```
-
----
 
 ### 🔐 Discord Authentication Flow
 
@@ -78,18 +59,7 @@ pnpm install
 pnpm dev
 ```
 
-#### Frontend
-
-```bash
-cd o7-front
-pnpm install
-pnpm dev
-```
-
----
-
-
-
+## Frenchies Version
 # 🎥 07 — Stream Content Upload System
 
 > ⚙️ Projet full-stack pour permettre à mes amis d’envoyer des images, vidéos ou sons pendant mes lives Twitch, qui s’affichent en overlay via OBS — avec pseudo, avatar et effets animés.
@@ -128,27 +98,6 @@ o7-back/
 └── server.js
 ```
 
-#### Frontend (`o7-front`)
-- Vue 3 (Composition API)
-- TailwindCSS + design personnalisé
-- GSAP pour les animations
-- Axios + Vue Router
-- Hébergé sur [Vercel](https://vercel.com/)
-
-```
-o7-front/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   ├── router/
-│   ├── utils/
-│   └── style.css
-├── public/
-└── .env
-```
-
----
-
 ### 🔐 Authentification Discord
 
 1. L’utilisateur se connecte avec Discord via OAuth2
@@ -181,15 +130,5 @@ cd o7-back
 pnpm install
 pnpm dev
 ```
-
-#### Frontend
-
-```bash
-cd o7-front
-pnpm install
-pnpm dev
-```
-
----
 
 Made with ❤️ by Zakaria Oubbéa (aka ZakAuMiel).
