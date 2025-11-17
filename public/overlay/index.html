@@ -8,9 +8,6 @@
       rel="stylesheet"
     />
 
-    <!-- Script officiel TikTok pour les embeds -->
-    <script async src="https://www.tiktok.com/embed.js"></script>
-
     <style>
       html,
       body {
@@ -22,7 +19,7 @@
         height: 100vh;
       }
 
-      /* La scène = tout l'écran OBS */
+      /* La scène = tout l'écran (Melted / OBS) */
       #container {
         position: relative;
         width: 100vw;
@@ -81,9 +78,9 @@
         }
       }
 
+      /* Fichiers locaux (vidéo / image) dans le wrapper */
       video,
-      img,
-      iframe {
+      img {
         width: 100%;
         height: 100%;
         border-radius: 10px;
@@ -92,10 +89,12 @@
         object-fit: contain;
       }
 
-      /* TikTok embed block */
-      .tiktok-embed {
+      /* Iframes (YouTube / Twitch / TikTok Player) remplissent juste le wrapper */
+      iframe {
         width: 100%;
         height: 100%;
+        border-radius: 10px;
+        border: none;
       }
 
       #media-wrapper {
@@ -171,7 +170,7 @@
         });
       }
 
-      // Helpers YouTube / Twitch / TikTok
+      // Helpers YouTube / Twitch / TikTok Player
       function getYouTubeEmbed(url) {
         const match = url.match(
           /(?:youtube\.com\/.*v=|youtu\.be\/)([^&#?/]+)/i
@@ -179,7 +178,7 @@
         const videoId = match ? match[1] : null;
         if (!videoId) return null;
 
-        // OBS gère le son, on laisse autoplay=1&mute=0
+        // YouTube en 16:9 dans le wrapper, contrôles masqués, autoplay
         return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0&controls=0&playsinline=1`;
       }
 
@@ -205,6 +204,31 @@
       function getTikTokVideoId(url) {
         const match = url.match(/tiktok\.com\/.*video\/(\d+)/i);
         return match ? match[1] : null;
+      }
+
+      function getTikTokPlayerUrl(url) {
+        const id = getTikTokVideoId(url);
+        if (!id) return null;
+
+        // TikTok Embed Player v1
+        // paramètres d'UI depuis la doc officielle
+        const params = new URLSearchParams({
+          controls: "0", // hide progress bar + control buttons
+          progress_bar: "0",
+          play_button: "0",
+          volume_control: "0",
+          fullscreen_button: "0",
+          timestamp: "0",
+          loop: "0", // ne pas boucler
+          autoplay: "1", // auto play
+          music_info: "0",
+          description: "0",
+          rel: "0",
+          native_context_menu: "0",
+          closed_caption: "0",
+        });
+
+        return `https://www.tiktok.com/player/v1/${id}?${params.toString()}`;
       }
 
       function applyLayout(layout) {
@@ -256,9 +280,9 @@
 
         const isAudio = data.type === "audio";
         const isYouTube = data.type === "youtube";
-        const isTikTok = data.type === "tiktok";
+        const isTikTokPlayer = data.type === "tiktok-player";
         const isTwitch = data.type === "twitch";
-        const isEmbed = isYouTube || isTikTok || isTwitch;
+        const isEmbed = isYouTube || isTikTokPlayer || isTwitch;
 
         // 🎵 AUDIO
         if (isAudio) {
@@ -322,49 +346,32 @@
           return;
         }
 
-        // 🎬 EMBEDS (YouTube / TikTok / Twitch)
+        // 🎬 EMBEDS (YouTube / TikTok Player / Twitch)
         if (isEmbed) {
           container.style.display = "block";
           wrapper.innerHTML = "";
 
-          if (isTikTok) {
-            // ➜ Embed officiel TikTok : blockquote + script
-            const videoId = getTikTokVideoId(mediaUrl);
+          let iframeSrc = null;
 
-            const blockquote = document.createElement("blockquote");
-            blockquote.className = "tiktok-embed";
-            blockquote.setAttribute("cite", mediaUrl);
-            if (videoId) {
-              blockquote.setAttribute("data-video-id", videoId);
-            }
-            const section = document.createElement("section");
-            blockquote.appendChild(section);
-
-            wrapper.appendChild(blockquote);
-
-            // Si le script embed.js est déjà chargé, on relance le rendu
-            if (window.tiktokEmbedLoad) {
-              try {
-                window.tiktokEmbedLoad();
-              } catch (e) {
-                console.warn("Erreur tiktokEmbedLoad", e);
-              }
-            }
-          } else {
-            let embedUrl = null;
-            if (isYouTube) embedUrl = getYouTubeEmbed(mediaUrl);
-            else if (isTwitch) embedUrl = getTwitchEmbed(mediaUrl);
-
-            if (!embedUrl) embedUrl = mediaUrl;
-
-            const iframe = document.createElement("iframe");
-            iframe.src = embedUrl;
-            iframe.allow =
-              "autoplay; encrypted-media; picture-in-picture; fullscreen";
-            iframe.allowFullscreen = true;
-
-            wrapper.appendChild(iframe);
+          if (isTikTokPlayer) {
+            iframeSrc = getTikTokPlayerUrl(mediaUrl);
+          } else if (isYouTube) {
+            iframeSrc = getYouTubeEmbed(mediaUrl);
+          } else if (isTwitch) {
+            iframeSrc = getTwitchEmbed(mediaUrl);
           }
+
+          if (!iframeSrc) {
+            iframeSrc = mediaUrl;
+          }
+
+          const iframe = document.createElement("iframe");
+          iframe.src = iframeSrc;
+          iframe.allow =
+            "autoplay; encrypted-media; picture-in-picture; fullscreen";
+          iframe.allowFullscreen = true;
+
+          wrapper.appendChild(iframe);
 
           if (data.message) {
             message.textContent = data.message;
@@ -392,7 +399,7 @@
           return;
         }
 
-        // 🎥 / 🖼️ VIDEO / IMAGE
+        // 🎥 / 🖼️ VIDEO / IMAGE fichiers locaux
         const media = document.createElement(
           data.type === "video" ? "video" : "img"
         );
@@ -427,7 +434,7 @@
         gsap.fromTo(
           container,
           { opacity: 0, scale: 0.95 },
-          { opacity: 1, scale: 1, duration: 0.5 }
+          { opacity: 1, duration: 0.5 }
         );
 
         const durationVal =
