@@ -1,29 +1,6 @@
 // uploadController.js
 const path = require("path");
 const fs = require("fs");
-const axios = require("axios");
-
-// 🧩 Helper : récupérer un MP4 direct à partir d'une URL TikTok
-async function getTikTokDirectUrl(tiktokUrl) {
-  try {
-    const apiUrl = `https://api.tikwm.com/video/?url=${encodeURIComponent(
-      tiktokUrl
-    )}`;
-
-    const res = await axios.get(apiUrl);
-
-    if (res?.data?.data?.play) {
-      console.log("🎵 TikTok MP4 direct:", res.data.data.play);
-      return res.data.data.play; // URL MP4 lisible directement par <video>
-    }
-
-    console.warn("⚠️ TikTok API: pas de champ .data.play");
-    return null;
-  } catch (err) {
-    console.error("❌ TikTok API error:", err.message || err);
-    return null;
-  }
-}
 
 const uploadMedia = async (req, res) => {
   try {
@@ -44,21 +21,14 @@ const uploadMedia = async (req, res) => {
     let type = "image";
     let filePath = null;
 
-    // 1️⃣ Cas URL externe (YouTube / Twitch / TikTok / autre)
+    // 1️⃣ URL externe
     if (externalUrl && externalUrl.trim() !== "") {
       const clean = externalUrl.trim();
 
-      // --- TIKTOK : on essaie de convertir en MP4 direct ---
+      // --- TIKTOK PLAYER OFFICIEL ---
       if (clean.includes("tiktok.com")) {
-        const mp4Url = await getTikTokDirectUrl(clean);
-        if (mp4Url) {
-          mediaUrl = mp4Url;
-          type = "video"; // MP4 externe, lu comme une vidéo classique
-        } else {
-          // fallback : on garde l'URL TikTok brute (si tu veux un jour réessayer l'embed)
-          mediaUrl = clean;
-          type = "tiktok";
-        }
+        mediaUrl = clean;
+        type = "tiktok-player"; // 🟩 NOUVEAU TYPE
       }
 
       // --- YOUTUBE ---
@@ -73,41 +43,37 @@ const uploadMedia = async (req, res) => {
         type = "twitch";
       }
 
-      // --- AUDIO direct (mp3, wav, ogg) ---
+      // --- AUDIO FILE URL ---
       else if (/\.(mp3|wav|ogg)(\?|#|$)/i.test(clean)) {
         mediaUrl = clean;
         type = "audio";
       }
 
-      // --- VIDEO direct (mp4, webm, mov, etc.) ---
+      // --- VIDEO FILE URL ---
       else if (/\.(mp4|webm|mov)(\?|#|$)/i.test(clean)) {
         mediaUrl = clean;
         type = "video";
       }
 
-      // --- fallback : image / autre ---
+      // --- FALLBACK IMAGE ---
       else {
         mediaUrl = clean;
         type = "image";
       }
     }
 
-    // 2️⃣ Sinon, fichier uploadé
+    // 2️⃣ Fichier uploadé
     else if (file) {
       mediaUrl = `/uploads/${file.filename}`;
       const mime = file.mimetype || "";
 
-      if (mime.startsWith("video")) {
-        type = "video";
-      } else if (mime.startsWith("audio")) {
-        type = "audio";
-      } else {
-        type = "image";
-      }
+      if (mime.startsWith("video")) type = "video";
+      else if (mime.startsWith("audio")) type = "audio";
+      else type = "image";
 
       filePath = path.join(__dirname, "..", "public", "uploads", file.filename);
 
-      // 🕒 Suppression auto après 5 minutes
+      // suppression auto
       setTimeout(() => {
         fs.unlink(filePath, (err) => {
           if (err) console.error("Erreur suppression fichier :", err);
@@ -116,38 +82,38 @@ const uploadMedia = async (req, res) => {
       }, 5 * 60 * 1000);
     }
 
-    // 3️⃣ Aucun média fourni
+    // 3️⃣ Aucun media
     else {
       return res.status(400).json({ message: "Aucun média fourni." });
     }
 
-    // 4️⃣ Construction du payload pour l'overlay
+    // 4️⃣ PAYLOAD envoyé à l’overlay
     const payload = {
       url: mediaUrl,
-      type, // "video" | "audio" | "image" | "youtube" | "twitch" | "tiktok"
+      type, // <-- "tiktok-player" maintenant
       username,
       avatarUrl,
       displaySize,
       message,
     };
 
-    // Durée (en ms, déjà gérée côté front) si fournie
+    // durée
     if (duration && !isNaN(Number(duration))) {
       payload.duration = Number(duration);
     }
 
-    // Layout (pour ta scène draggable/resizable)
+    // layout custom
     if (layout) {
       try {
         payload.layout = JSON.parse(layout);
       } catch (e) {
-        console.warn("⚠️ Layout invalide, ignoré :", e.message || e);
+        console.warn("⚠️ Layout invalide :", e.message);
       }
     }
 
     console.log("🎬 Payload envoyé à overlay :", payload);
 
-    // 5️⃣ Envoi à tous les overlays connectés
+    // 5️⃣ broadcast
     io.emit("new-media", payload);
 
     return res.status(200).json({ success: true, file: payload });
