@@ -108,6 +108,7 @@
 
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
     <script>
       const socket = io(location.origin, { transports: ["websocket"] });
 
@@ -145,7 +146,13 @@
         avatar.src = data.avatarUrl || "";
 
         const isAudio = data.type === "audio";
-        const mediaUrl = location.origin + data.url;
+
+        // 🆕 Gestion des URLs externes vs locales
+        const rawUrl = data.url || "";
+        const mediaUrl =
+          rawUrl.startsWith("http://") || rawUrl.startsWith("https://")
+            ? rawUrl
+            : location.origin + rawUrl;
 
         if (isAudio) {
           container.style.display = "flex";

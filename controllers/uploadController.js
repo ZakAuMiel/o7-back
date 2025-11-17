@@ -1,4 +1,4 @@
-//uploadController.js
+// uploadController.js
 const path = require("path");
 const fs = require("fs");
 
@@ -15,16 +15,37 @@ const uploadMedia = async (req, res) => {
 
     if (externalUrl && externalUrl.trim() !== "") {
       mediaUrl = externalUrl.trim();
-      type =
-        mediaUrl.includes("mp4") || mediaUrl.includes("youtu")
-          ? "video"
-          : "image";
+      const lower = mediaUrl.toLowerCase();
+
+      if (lower.endsWith(".mp3")) {
+        type = "audio";
+      } else if (
+        lower.endsWith(".mp4") ||
+        lower.endsWith(".mov") ||
+        lower.endsWith(".webm") ||
+        lower.includes("youtube") ||
+        lower.includes("vimeo") ||
+        lower.includes("twitch") ||
+        lower.includes("tiktok")
+      ) {
+        type = "video";
+      } else {
+        type = "image";
+      }
     } else if (file) {
       mediaUrl = `/uploads/${file.filename}`;
-      type = file.mimetype.startsWith("video") ? "video" : "image";
+      const mime = file.mimetype;
+
+      if (mime.startsWith("audio")) {
+        type = "audio";
+      } else if (mime.startsWith("video")) {
+        type = "video";
+      } else {
+        type = "image";
+      }
+
       filePath = path.join(__dirname, "..", "public", "uploads", file.filename);
 
-      // 🕒 Suppression auto après 5 minutes
       setTimeout(() => {
         fs.unlink(filePath, (err) => {
           if (err) console.error("Erreur suppression fichier :", err);
@@ -49,7 +70,7 @@ const uploadMedia = async (req, res) => {
     }
 
     console.log("🎬 Payload envoyé à overlay :", payload);
-    io.emit("new-media", payload);
+    io.emit("new-media", payload); // bientôt: io.to(roomName).emit(...)
 
     return res.status(200).json({ success: true, file: payload });
   } catch (err) {
