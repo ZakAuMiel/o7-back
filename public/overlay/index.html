@@ -181,11 +181,38 @@
             { opacity: 1, scale: 1, duration: 0.5 }
           );
 
-          setTimeout(() => {
-            audio.pause();
-            audio.remove();
-            hideOverlay();
-          }, 7000);
+          // On regarde si une durée custom a été envoyée
+          const customDuration =
+            data.duration &&
+            !isNaN(Number(data.duration)) &&
+            Number(data.duration) > 0
+              ? Number(data.duration)
+              : null;
+
+          if (customDuration) {
+            // Cas "durée personnalisée"
+            setTimeout(() => {
+              audio.pause();
+              audio.remove();
+              hideOverlay();
+            }, customDuration);
+          } else {
+            // Cas "laisser l'audio complet"
+            audio.addEventListener("ended", () => {
+              audio.pause();
+              audio.remove();
+              hideOverlay();
+            });
+
+            // Sécurité : si jamais l'event 'ended' ne se déclenche pas (bug/loop)
+            setTimeout(() => {
+              if (!audio.paused) {
+                audio.pause();
+                audio.remove();
+                hideOverlay();
+              }
+            }, 5 * 60 * 1000); // 5 minutes max
+          }
 
           return;
         }
