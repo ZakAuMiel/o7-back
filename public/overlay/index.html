@@ -82,11 +82,13 @@
       }
 
       video,
-      img {
+      img,
+      iframe {
         max-width: 80vw;
         max-height: 60vh;
         border-radius: 10px;
         background: black;
+        border: none;
       }
 
       #message {
@@ -135,6 +137,44 @@
         });
       }
 
+      // Helpers pour construire les URLs embed
+      function getYouTubeEmbed(url) {
+        const match = url.match(
+          /(?:youtube\.com\/.*v=|youtu\.be\/)([^&#?/]+)/i
+        );
+        const videoId = match ? match[1] : null;
+        if (!videoId) return null;
+        return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0`;
+      }
+
+      function getTikTokEmbed(url) {
+        const match = url.match(/tiktok\.com\/.*video\/(\d+)/i);
+        const videoId = match ? match[1] : null;
+        if (!videoId) return null;
+        return `https://www.tiktok.com/embed/v2/${videoId}`;
+      }
+
+      function getTwitchEmbed(url) {
+        const lower = url.toLowerCase();
+        const host = location.hostname;
+
+        // VOD: twitch.tv/videos/123456789
+        const vodMatch = lower.match(/twitch\.tv\/videos\/(\d+)/);
+        if (vodMatch) {
+          const videoId = vodMatch[1];
+          return `https://player.twitch.tv/?video=${videoId}&parent=${host}&autoplay=true`;
+        }
+
+        // Live channel: twitch.tv/channelname
+        const channelMatch = lower.match(/twitch\.tv\/([a-z0-9_]+)(?:\/)?$/);
+        if (channelMatch) {
+          const channel = channelMatch[1];
+          return `https://player.twitch.tv/?channel=${channel}&parent=${host}&autoplay=true`;
+        }
+
+        return null;
+      }
+
       socket.on("new-media", (data) => {
         resetOverlay();
 
@@ -145,15 +185,74 @@
 
         avatar.src = data.avatarUrl || "";
 
-        const isAudio = data.type === "audio";
-
-        // 🆕 Gestion des URLs externes vs locales
         const rawUrl = data.url || "";
         const mediaUrl =
           rawUrl.startsWith("http://") || rawUrl.startsWith("https://")
             ? rawUrl
             : location.origin + rawUrl;
 
+        const isAudio = data.type === "audio";
+        const isYouTube = data.type === "youtube";
+        const isTikTok = data.type === "tiktok";
+        const isTwitch = data.type === "twitch";
+        const isEmbed = isYouTube || isTikTok || isTwitch;
+
+        // 🎬 CAS 1 : YouTube / TikTok / Twitch → <iframe>
+        if (isEmbed) {
+          container.style.display = "flex";
+          wrapper.innerHTML = "";
+
+          let embedUrl = null;
+
+          if (isYouTube) {
+            embedUrl = getYouTubeEmbed(mediaUrl);
+          } else if (isTikTok) {
+            embedUrl = getTikTokEmbed(mediaUrl);
+          } else if (isTwitch) {
+            embedUrl = getTwitchEmbed(mediaUrl);
+          }
+
+          // fallback brut si parsing raté
+          if (!embedUrl) {
+            embedUrl = mediaUrl;
+          }
+
+          const iframe = document.createElement("iframe");
+          iframe.src = embedUrl;
+          iframe.allow =
+            "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+          iframe.allowFullscreen = true;
+
+          wrapper.appendChild(iframe);
+          container.style.display = "flex";
+
+          gsap.fromTo(
+            container,
+            { opacity: 0, scale: 0.8 },
+            { opacity: 1, scale: 1, duration: 0.5 }
+          );
+
+          if (data.message) {
+            message.textContent = data.message;
+          }
+
+          const customDuration =
+            data.duration &&
+            !isNaN(Number(data.duration)) &&
+            Number(data.duration) > 0
+              ? Number(data.duration)
+              : null;
+
+          const finalDuration = customDuration || 10000; // 10s par défaut
+
+          setTimeout(() => {
+            hideOverlay();
+          }, finalDuration);
+
+          return;
+        }
+
+        // 🎵 CAS 2 : AUDIO
         if (isAudio) {
           container.style.display = "flex";
           wrapper.innerHTML = "";
@@ -181,7 +280,6 @@
             { opacity: 1, scale: 1, duration: 0.5 }
           );
 
-          // On regarde si une durée custom a été envoyée
           const customDuration =
             data.duration &&
             !isNaN(Number(data.duration)) &&
@@ -190,33 +288,31 @@
               : null;
 
           if (customDuration) {
-            // Cas "durée personnalisée"
             setTimeout(() => {
               audio.pause();
               audio.remove();
               hideOverlay();
             }, customDuration);
           } else {
-            // Cas "laisser l'audio complet"
             audio.addEventListener("ended", () => {
               audio.pause();
               audio.remove();
               hideOverlay();
             });
 
-            // Sécurité : si jamais l'event 'ended' ne se déclenche pas (bug/loop)
             setTimeout(() => {
               if (!audio.paused) {
                 audio.pause();
                 audio.remove();
                 hideOverlay();
               }
-            }, 5 * 60 * 1000); // 5 minutes max
+            }, 5 * 60 * 1000);
           }
 
           return;
         }
 
+        // 🎥 / 🖼️ CAS 3 : VIDEO / IMAGE
         const media = document.createElement(
           data.type === "video" ? "video" : "img"
         );

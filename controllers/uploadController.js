@@ -13,26 +13,36 @@ const uploadMedia = async (req, res) => {
     let type = "image";
     let filePath = null;
 
+    // 🔗 CAS 1 : URL externe (YouTube, TikTok, Twitch, etc.)
     if (externalUrl && externalUrl.trim() !== "") {
       mediaUrl = externalUrl.trim();
       const lower = mediaUrl.toLowerCase();
 
-      if (lower.endsWith(".mp3")) {
+      const isYouTube =
+        lower.includes("youtube.com") || lower.includes("youtu.be");
+      const isTikTok = lower.includes("tiktok.com");
+      const isTwitch = lower.includes("twitch.tv");
+
+      if (isYouTube) {
+        type = "youtube";
+      } else if (isTikTok) {
+        type = "tiktok";
+      } else if (isTwitch) {
+        type = "twitch";
+      } else if (lower.endsWith(".mp3")) {
         type = "audio";
       } else if (
         lower.endsWith(".mp4") ||
         lower.endsWith(".mov") ||
-        lower.endsWith(".webm") ||
-        lower.includes("youtube") ||
-        lower.includes("vimeo") ||
-        lower.includes("twitch") ||
-        lower.includes("tiktok")
+        lower.endsWith(".webm")
       ) {
         type = "video";
       } else {
         type = "image";
       }
-    } else if (file) {
+    }
+    // 📁 CAS 2 : fichier uploadé
+    else if (file) {
       mediaUrl = `/uploads/${file.filename}`;
       const mime = file.mimetype;
 
@@ -46,6 +56,7 @@ const uploadMedia = async (req, res) => {
 
       filePath = path.join(__dirname, "..", "public", "uploads", file.filename);
 
+      // 🕒 Suppression auto après 5 minutes
       setTimeout(() => {
         fs.unlink(filePath, (err) => {
           if (err) console.error("Erreur suppression fichier :", err);
@@ -58,7 +69,7 @@ const uploadMedia = async (req, res) => {
 
     const payload = {
       url: mediaUrl,
-      type,
+      type, // "youtube" | "tiktok" | "twitch" | "audio" | "video" | "image"
       username,
       avatarUrl,
       displaySize,
@@ -70,7 +81,7 @@ const uploadMedia = async (req, res) => {
     }
 
     console.log("🎬 Payload envoyé à overlay :", payload);
-    io.emit("new-media", payload); // bientôt: io.to(roomName).emit(...)
+    io.emit("new-media", payload); // plus tard: io.to(roomName).emit(...)
 
     return res.status(200).json({ success: true, file: payload });
   } catch (err) {
