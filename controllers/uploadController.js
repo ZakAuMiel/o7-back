@@ -21,41 +21,35 @@ const uploadMedia = async (req, res) => {
     let type = "image";
     let filePath = null;
 
-    // 1️⃣ URL externe
+    // 1️⃣ URL externe (YouTube / Twitch / MP4 / MP3 / image / etc.)
     if (externalUrl && externalUrl.trim() !== "") {
       const clean = externalUrl.trim();
 
-      // --- TIKTOK PLAYER OFFICIEL ---
-      if (clean.includes("tiktok.com")) {
-        mediaUrl = clean;
-        type = "tiktok-player"; // 🟩 NOUVEAU TYPE
-      }
-
-      // --- YOUTUBE ---
-      else if (clean.includes("youtube.com") || clean.includes("youtu.be")) {
+      // YouTube
+      if (clean.includes("youtube.com") || clean.includes("youtu.be")) {
         mediaUrl = clean;
         type = "youtube";
       }
 
-      // --- TWITCH ---
+      // Twitch
       else if (clean.includes("twitch.tv")) {
         mediaUrl = clean;
         type = "twitch";
       }
 
-      // --- AUDIO FILE URL ---
+      // Audio direct
       else if (/\.(mp3|wav|ogg)(\?|#|$)/i.test(clean)) {
         mediaUrl = clean;
         type = "audio";
       }
 
-      // --- VIDEO FILE URL ---
+      // Vidéo directe (MP4 / WebM / MOV)
       else if (/\.(mp4|webm|mov)(\?|#|$)/i.test(clean)) {
         mediaUrl = clean;
         type = "video";
       }
 
-      // --- FALLBACK IMAGE ---
+      // fallback : image ou autre
       else {
         mediaUrl = clean;
         type = "image";
@@ -73,7 +67,7 @@ const uploadMedia = async (req, res) => {
 
       filePath = path.join(__dirname, "..", "public", "uploads", file.filename);
 
-      // suppression auto
+      // Suppression auto après 5 minutes
       setTimeout(() => {
         fs.unlink(filePath, (err) => {
           if (err) console.error("Erreur suppression fichier :", err);
@@ -87,27 +81,27 @@ const uploadMedia = async (req, res) => {
       return res.status(400).json({ message: "Aucun média fourni." });
     }
 
-    // 4️⃣ PAYLOAD envoyé à l’overlay
+    // 4️⃣ Payload overlay
     const payload = {
       url: mediaUrl,
-      type, // <-- "tiktok-player" maintenant
+      type, // "video" | "audio" | "image" | "youtube" | "twitch"
       username,
       avatarUrl,
       displaySize,
       message,
     };
 
-    // durée
+    // durée (en ms)
     if (duration && !isNaN(Number(duration))) {
       payload.duration = Number(duration);
     }
 
-    // layout custom
+    // layout (scène draggable)
     if (layout) {
       try {
         payload.layout = JSON.parse(layout);
       } catch (e) {
-        console.warn("⚠️ Layout invalide :", e.message);
+        console.warn("⚠️ Layout invalide, ignoré :", e.message || e);
       }
     }
 
