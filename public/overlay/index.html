@@ -170,7 +170,7 @@
         );
         const videoId = match ? match[1] : null;
         if (!videoId) return null;
-        return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1`;
+        return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0`;
       }
 
       function getTikTokEmbed(url) {
@@ -187,13 +187,13 @@
         const vodMatch = lower.match(/twitch\.tv\/videos\/(\d+)/);
         if (vodMatch) {
           const videoId = vodMatch[1];
-          return `https://player.twitch.tv/?video=${videoId}&parent=${host}&autoplay=true&muted=true`;
+          return `https://player.twitch.tv/?video=${videoId}&parent=${host}&autoplay=true&muted=false`;
         }
 
         const channelMatch = lower.match(/twitch\.tv\/([a-z0-9_]+)(?:\/)?$/);
         if (channelMatch) {
           const channel = channelMatch[1];
-          return `https://player.twitch.tv/?channel=${channel}&parent=${host}&autoplay=true&muted=true`;
+          return `https://player.twitch.tv/?channel=${channel}&parent=${host}&autoplay=true&muted=false`;
         }
 
         return null;
