@@ -4,8 +4,15 @@ const fs = require("fs");
 
 const uploadMedia = async (req, res) => {
   try {
-    const { username, avatarUrl, displaySize, duration, message, externalUrl } =
-      req.body;
+    const {
+      username,
+      avatarUrl,
+      displaySize,
+      duration,
+      message,
+      externalUrl,
+      layout,
+    } = req.body;
     const file = req.file;
     const io = req.app.get("io");
 
@@ -78,6 +85,14 @@ const uploadMedia = async (req, res) => {
 
     if (duration && !isNaN(Number(duration))) {
       payload.duration = Number(duration);
+    }
+
+    if (layout) {
+      try {
+        payload.layout = JSON.parse(layout);
+      } catch (e) {
+        console.warn("Layout invalide, ignoré");
+      }
     }
 
     console.log("🎬 Payload envoyé à overlay :", payload);
