@@ -18,28 +18,24 @@
         height: 100vh;
       }
 
+      /* La scène = tout l'écran OBS */
       #container {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%) scale(0.8);
+        position: relative;
+        width: 100vw;
+        height: 100vh;
         opacity: 0;
         background: rgba(0, 0, 0, 0);
-        padding: 20px;
-        border-radius: 12px;
+        padding: 0;
         color: white;
         font-family: "Rubik", sans-serif;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 12px;
-        max-width: 90vw;
+        overflow: hidden;
       }
 
       #user-info {
         display: flex;
         align-items: center;
         gap: 10px;
+        pointer-events: none;
       }
 
       #avatar {
@@ -81,20 +77,27 @@
         }
       }
 
+      /* Les médias remplissent leur wrapper */
       video,
       img,
       iframe {
-        max-width: 80vw;
-        max-height: 60vh;
+        width: 100%;
+        height: 100%;
         border-radius: 10px;
         background: black;
         border: none;
+        object-fit: contain;
+      }
+
+      #media-wrapper {
+        pointer-events: none;
       }
 
       #message {
         font-size: 1rem;
         color: #f7e6e6;
         text-align: center;
+        pointer-events: none;
       }
     </style>
   </head>
@@ -115,6 +118,7 @@
       const socket = io(location.origin, { transports: ["websocket"] });
 
       const container = document.getElementById("container");
+      const userInfo = document.getElementById("user-info");
       const avatar = document.getElementById("avatar");
       const username = document.getElementById("username");
       const wrapper = document.getElementById("media-wrapper");
@@ -126,7 +130,29 @@
         username.textContent = "";
         username.classList.remove("wave-username");
         message.textContent = "";
+
+        // reset styles pour revenir à un état neutre
+        container.style.opacity = 0;
         container.style.display = "none";
+
+        userInfo.style.position = "";
+        userInfo.style.left = "";
+        userInfo.style.top = "";
+        userInfo.style.width = "";
+        userInfo.style.height = "";
+        userInfo.style.transform = "";
+
+        wrapper.style.position = "";
+        wrapper.style.left = "";
+        wrapper.style.top = "";
+        wrapper.style.width = "";
+        wrapper.style.height = "";
+
+        message.style.position = "";
+        message.style.left = "";
+        message.style.top = "";
+        message.style.width = "";
+        message.style.height = "";
       }
 
       function hideOverlay() {
@@ -137,14 +163,14 @@
         });
       }
 
-      // Helpers pour construire les URLs embed
+      // Helpers pour embed
       function getYouTubeEmbed(url) {
         const match = url.match(
           /(?:youtube\.com\/.*v=|youtu\.be\/)([^&#?/]+)/i
         );
         const videoId = match ? match[1] : null;
         if (!videoId) return null;
-        return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0`;
+        return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1`;
       }
 
       function getTikTokEmbed(url) {
@@ -156,23 +182,50 @@
 
       function getTwitchEmbed(url) {
         const lower = url.toLowerCase();
-        const host = location.hostname;
+        const host = location.hostname || "localhost";
 
-        // VOD: twitch.tv/videos/123456789
         const vodMatch = lower.match(/twitch\.tv\/videos\/(\d+)/);
         if (vodMatch) {
           const videoId = vodMatch[1];
-          return `https://player.twitch.tv/?video=${videoId}&parent=${host}&autoplay=true`;
+          return `https://player.twitch.tv/?video=${videoId}&parent=${host}&autoplay=true&muted=true`;
         }
 
-        // Live channel: twitch.tv/channelname
         const channelMatch = lower.match(/twitch\.tv\/([a-z0-9_]+)(?:\/)?$/);
         if (channelMatch) {
           const channel = channelMatch[1];
-          return `https://player.twitch.tv/?channel=${channel}&parent=${host}&autoplay=true`;
+          return `https://player.twitch.tv/?channel=${channel}&parent=${host}&autoplay=true&muted=true`;
         }
 
         return null;
+      }
+
+      function applyLayout(layout) {
+        container.style.display = "block";
+
+        if (layout && layout.userInfo) {
+          userInfo.style.position = "absolute";
+          userInfo.style.left = layout.userInfo.x + "%";
+          userInfo.style.top = layout.userInfo.y + "%";
+          userInfo.style.width = layout.userInfo.width + "%";
+          userInfo.style.height = layout.userInfo.height + "%";
+          userInfo.style.transform = "translate(0, 0)";
+        }
+
+        if (layout && layout.media) {
+          wrapper.style.position = "absolute";
+          wrapper.style.left = layout.media.x + "%";
+          wrapper.style.top = layout.media.y + "%";
+          wrapper.style.width = layout.media.width + "%";
+          wrapper.style.height = layout.media.height + "%";
+        }
+
+        if (layout && layout.message) {
+          message.style.position = "absolute";
+          message.style.left = layout.message.x + "%";
+          message.style.top = layout.message.y + "%";
+          message.style.width = layout.message.width + "%";
+          message.style.height = layout.message.height + "%";
+        }
       }
 
       socket.on("new-media", (data) => {
@@ -180,10 +233,12 @@
 
         username.textContent = data.username || "Anonyme";
         username.classList.remove("wave-username");
-        void username.offsetWidth; // force reflow pour relancer l'animation
+        void username.offsetWidth; // force reflow
         username.classList.add("wave-username");
 
         avatar.src = data.avatarUrl || "";
+
+        const layout = data.layout || null;
 
         const rawUrl = data.url || "";
         const mediaUrl =
@@ -197,64 +252,9 @@
         const isTwitch = data.type === "twitch";
         const isEmbed = isYouTube || isTikTok || isTwitch;
 
-        // 🎬 CAS 1 : YouTube / TikTok / Twitch → <iframe>
-        if (isEmbed) {
-          container.style.display = "flex";
-          wrapper.innerHTML = "";
-
-          let embedUrl = null;
-
-          if (isYouTube) {
-            embedUrl = getYouTubeEmbed(mediaUrl);
-          } else if (isTikTok) {
-            embedUrl = getTikTokEmbed(mediaUrl);
-          } else if (isTwitch) {
-            embedUrl = getTwitchEmbed(mediaUrl);
-          }
-
-          // fallback brut si parsing raté
-          if (!embedUrl) {
-            embedUrl = mediaUrl;
-          }
-
-          const iframe = document.createElement("iframe");
-          iframe.src = embedUrl;
-          iframe.allow =
-            "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
-          iframe.allowFullscreen = true;
-
-          wrapper.appendChild(iframe);
-          container.style.display = "flex";
-
-          gsap.fromTo(
-            container,
-            { opacity: 0, scale: 0.8 },
-            { opacity: 1, scale: 1, duration: 0.5 }
-          );
-
-          if (data.message) {
-            message.textContent = data.message;
-          }
-
-          const customDuration =
-            data.duration &&
-            !isNaN(Number(data.duration)) &&
-            Number(data.duration) > 0
-              ? Number(data.duration)
-              : null;
-
-          const finalDuration = customDuration || 10000; // 10s par défaut
-
-          setTimeout(() => {
-            hideOverlay();
-          }, finalDuration);
-
-          return;
-        }
-
-        // 🎵 CAS 2 : AUDIO
+        // AUDIO
         if (isAudio) {
-          container.style.display = "flex";
+          container.style.display = "block";
           wrapper.innerHTML = "";
 
           const audio = document.createElement("audio");
@@ -274,9 +274,11 @@
               .catch((err) => console.warn("Erreur lecture audio :", err));
           };
 
+          applyLayout(layout);
+
           gsap.fromTo(
             container,
-            { opacity: 0, scale: 0.8 },
+            { opacity: 0, scale: 0.95 },
             { opacity: 1, scale: 1, duration: 0.5 }
           );
 
@@ -312,7 +314,53 @@
           return;
         }
 
-        // 🎥 / 🖼️ CAS 3 : VIDEO / IMAGE
+        // EMBEDS (YouTube / TikTok / Twitch)
+        if (isEmbed) {
+          container.style.display = "block";
+          wrapper.innerHTML = "";
+
+          let embedUrl = null;
+          if (isYouTube) embedUrl = getYouTubeEmbed(mediaUrl);
+          else if (isTikTok) embedUrl = getTikTokEmbed(mediaUrl);
+          else if (isTwitch) embedUrl = getTwitchEmbed(mediaUrl);
+
+          if (!embedUrl) embedUrl = mediaUrl;
+
+          const iframe = document.createElement("iframe");
+          iframe.src = embedUrl;
+          iframe.allow =
+            "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+          iframe.allowFullscreen = true;
+
+          wrapper.appendChild(iframe);
+
+          if (data.message) {
+            message.textContent = data.message;
+          }
+
+          applyLayout(layout);
+
+          gsap.fromTo(
+            container,
+            { opacity: 0, scale: 0.95 },
+            { opacity: 1, scale: 1, duration: 0.5 }
+          );
+
+          const customDuration =
+            data.duration &&
+            !isNaN(Number(data.duration)) &&
+            Number(data.duration) > 0
+              ? Number(data.duration)
+              : 10000; // 10s par défaut pour un embed
+
+          setTimeout(() => {
+            hideOverlay();
+          }, customDuration);
+
+          return;
+        }
+
+        // VIDEO / IMAGE
         const media = document.createElement(
           data.type === "video" ? "video" : "img"
         );
@@ -333,18 +381,22 @@
           };
         }
 
+        wrapper.innerHTML = "";
         wrapper.appendChild(media);
-        container.style.display = "flex";
-
-        gsap.fromTo(
-          container,
-          { opacity: 0, scale: 0.8 },
-          { opacity: 1, scale: 1, duration: 0.5 }
-        );
 
         if (data.message) {
           message.textContent = data.message;
         }
+
+        applyLayout(layout);
+
+        container.style.display = "block";
+
+        gsap.fromTo(
+          container,
+          { opacity: 0, scale: 0.95 },
+          { opacity: 1, scale: 1, duration: 0.5 }
+        );
 
         const duration =
           !isNaN(Number(data.duration)) && Number(data.duration) > 0
