@@ -1,6 +1,29 @@
 // uploadController.js
 const path = require("path");
 const fs = require("fs");
+const axios = require("axios");
+
+// 🧩 Helper : récupérer un MP4 direct à partir d'une URL TikTok (côté serveur)
+async function getTikTokDirectUrl(tiktokUrl) {
+  try {
+    const apiUrl = `https://api.tikwm.com/video/?url=${encodeURIComponent(
+      tiktokUrl
+    )}`;
+
+    const res = await axios.get(apiUrl);
+
+    if (res?.data?.data?.play) {
+      console.log("🎵 TikTok MP4 direct (server):", res.data.data.play);
+      return res.data.data.play; // URL MP4 lisible par <video>
+    }
+
+    console.warn("⚠️ TikTok API: pas de champ .data.play");
+    return null;
+  } catch (err) {
+    console.error("❌ TikTok API error:", err.message || err);
+    return null;
+  }
+}
 
 const uploadMedia = async (req, res) => {
   try {
@@ -21,35 +44,49 @@ const uploadMedia = async (req, res) => {
     let type = "image";
     let filePath = null;
 
-    // 1️⃣ URL externe (YouTube / Twitch / MP4 / MP3 / image / etc.)
+    // 1️⃣ URL externe (YouTube / Twitch / TikTok / MP4 / audio / image)
     if (externalUrl && externalUrl.trim() !== "") {
       const clean = externalUrl.trim();
 
-      // YouTube
-      if (clean.includes("youtube.com") || clean.includes("youtu.be")) {
+      // --- TIKTOK : on essaie de convertir en MP4 direct ---
+      if (clean.includes("tiktok.com")) {
+        const mp4Url = await getTikTokDirectUrl(clean);
+
+        if (mp4Url) {
+          mediaUrl = mp4Url;
+          type = "video"; // MP4 externe
+        } else {
+          // fallback : on garde le lien brut (au cas où tu voudrais l'embed un jour)
+          mediaUrl = clean;
+          type = "tiktok";
+        }
+      }
+
+      // --- YOUTUBE ---
+      else if (clean.includes("youtube.com") || clean.includes("youtu.be")) {
         mediaUrl = clean;
         type = "youtube";
       }
 
-      // Twitch
+      // --- TWITCH ---
       else if (clean.includes("twitch.tv")) {
         mediaUrl = clean;
         type = "twitch";
       }
 
-      // Audio direct
+      // --- AUDIO direct ---
       else if (/\.(mp3|wav|ogg)(\?|#|$)/i.test(clean)) {
         mediaUrl = clean;
         type = "audio";
       }
 
-      // Vidéo directe (MP4 / WebM / MOV)
+      // --- VIDEO direct (mp4, webm, mov...) ---
       else if (/\.(mp4|webm|mov)(\?|#|$)/i.test(clean)) {
         mediaUrl = clean;
         type = "video";
       }
 
-      // fallback : image ou autre
+      // --- fallback : image / autre ---
       else {
         mediaUrl = clean;
         type = "image";
@@ -67,7 +104,7 @@ const uploadMedia = async (req, res) => {
 
       filePath = path.join(__dirname, "..", "public", "uploads", file.filename);
 
-      // Suppression auto après 5 minutes
+      // 🕒 Suppression auto après 5 minutes
       setTimeout(() => {
         fs.unlink(filePath, (err) => {
           if (err) console.error("Erreur suppression fichier :", err);
@@ -76,27 +113,27 @@ const uploadMedia = async (req, res) => {
       }, 5 * 60 * 1000);
     }
 
-    // 3️⃣ Aucun media
+    // 3️⃣ Aucun média fourni
     else {
       return res.status(400).json({ message: "Aucun média fourni." });
     }
 
-    // 4️⃣ Payload overlay
+    // 4️⃣ Construction du payload pour l'overlay
     const payload = {
       url: mediaUrl,
-      type, // "video" | "audio" | "image" | "youtube" | "twitch"
+      type, // "video" | "audio" | "image" | "youtube" | "twitch" | "tiktok"
       username,
       avatarUrl,
       displaySize,
       message,
     };
 
-    // durée (en ms)
+    // Durée (ms)
     if (duration && !isNaN(Number(duration))) {
       payload.duration = Number(duration);
     }
 
-    // layout (scène draggable)
+    // Layout (drag & drop depuis Upload.vue)
     if (layout) {
       try {
         payload.layout = JSON.parse(layout);
@@ -107,7 +144,7 @@ const uploadMedia = async (req, res) => {
 
     console.log("🎬 Payload envoyé à overlay :", payload);
 
-    // 5️⃣ broadcast
+    // 5️⃣ Broadcast à l'overlay
     io.emit("new-media", payload);
 
     return res.status(200).json({ success: true, file: payload });
